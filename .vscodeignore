@@ -1,0 +1,26 @@
+# Directories to exclude
+.vscode/
+build/
+docs/
+docs_design/
+node_modules/
+out/test/
+src/
+test/
+
+# Files to exclude
+.git*
+*.json
+*.js.map
+*.vsix
+README.md
+
+# Re-include necessary files
+!package.json
+!field_mapping_dictionary.json
+!tsconfig.json
+!README.md
+
+# Note:
+# 'scripts' and 'out' directories are included by default because they are not excluded.
+# Production dependencies from 'package.json' will be bundled by 'vsce' automatically. 
