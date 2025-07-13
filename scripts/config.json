@@ -1,0 +1,68 @@
+{
+  "customOutputPath": "D:\\workcode\\ims-viewer\\docs",
+  "database": {
+    "host": "localhost",
+    "port": 27017,
+    "database_name": "ims_database",
+    "username": null,
+    "password": null,
+    "connection_timeout": 30,
+    "max_pool_size": 100,
+    "retry_writes": true
+  },
+  "report": {
+    "default_page_size": 100,
+    "max_records_per_report": 10000,
+    "date_format": "%Y-%m-%d",
+    "datetime_format": "%Y-%m-%d %H:%M:%S",
+    "currency_symbol": "¥",
+    "decimal_places": 2,
+    "enable_caching": true,
+    "cache_ttl_seconds": 3600
+  },
+  "logging": {
+    "level": "INFO",
+    "enable_console": true,
+    "enable_file": true,
+    "enable_json": false,
+    "log_dir": null,
+    "max_file_size": 10485760,
+    "backup_count": 5,
+    "performance_threshold": 1.0
+  },
+  "validation": {
+    "strict_mode": false,
+    "allow_empty_strings": true,
+    "max_string_length": 1000,
+    "date_formats": [
+      "%Y-%m-%d",
+      "%Y/%m/%d",
+      "%d/%m/%Y",
+      "%Y-%m-%d %H:%M:%S",
+      "%Y/%m/%d %H:%M:%S"
+    ],
+    "required_fields_by_table": {
+      "inventory": [
+        "product_name",
+        "quantity"
+      ],
+      "sales": [
+        "order_id",
+        "amount"
+      ],
+      "purchases": [
+        "purchase_id",
+        "amount"
+      ],
+      "customers": [
+        "customer_name"
+      ],
+      "suppliers": [
+        "supplier_name"
+      ]
+    }
+  },
+  "debug_mode": false,
+  "environment": "development",
+  "version": "1.0.0"
+}

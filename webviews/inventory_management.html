@@ -1,0 +1,1607 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>进销存管理系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .tabs {
+            display: flex;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 15px 20px;
+            background: #f8f9fa;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            border-right: 1px solid #e9ecef;
+        }
+
+        .tab:last-child {
+            border-right: none;
+        }
+
+        .tab.active {
+            background: #007bff;
+            color: white;
+        }
+
+        .tab:hover:not(.active) {
+            background: #e9ecef;
+        }
+
+        .tab-content {
+            display: none;
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f1f3f4;
+        }
+
+        .section-title {
+            font-size: 1.8em;
+            color: #2c3e50;
+            font-weight: 600;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #0056b3;
+            transform: translateY(-1px);
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #1e7e34;
+        }
+
+        .btn-warning {
+            background: #ffc107;
+            color: #212529;
+        }
+
+        .btn-warning:hover {
+            background: #e0a800;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #555;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
+        }
+
+        .form-control.required {
+            border-left: 4px solid #007bff;
+        }
+
+        .search-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            align-items: center;
+        }
+
+        .search-bar input {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid #e9ecef;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .data-table th {
+            background: #f8f9fa;
+            padding: 15px 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #495057;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .data-table td {
+            padding: 12px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .data-table tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-completed {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-cancelled {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f1f3f4;
+        }
+
+        .modal-title {
+            font-size: 1.5em;
+            color: #2c3e50;
+            font-weight: 600;
+        }
+
+        .close {
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            color: #aaa;
+        }
+
+        .close:hover {
+            color: #000;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+
+        .loading-spinner {
+            background: white;
+            padding: 20px 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            font-size: 16px;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .loading-spinner::after {
+            content: '';
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            margin-left: 10px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+            border: 1px solid #f5c6cb;
+        }
+
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+            border: 1px solid #c3e6cb;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #007bff;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            color: #6c757d;
+            font-size: 0.9em;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+
+            .tabs {
+                flex-direction: column;
+            }
+
+            .tab {
+                border-right: none;
+                border-bottom: 1px solid #e9ecef;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .search-bar {
+                flex-direction: column;
+            }
+
+            .modal-content {
+                width: 95%;
+                margin: 10% auto;
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>进销存管理系统</h1>
+            <p>采购管理 | 销售管理 | 库存管理</p>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('purchase')">采购管理</button>
+            <button class="tab" onclick="showTab('sales')">销售管理</button>
+            <button class="tab" onclick="showTab('inventory')">库存管理</button>
+        </div>
+
+        <!-- 采购管理 -->
+        <div id="purchase" class="tab-content active">
+            <div class="section-header">
+                <h2 class="section-title">采购管理</h2>
+                <button class="btn btn-primary" onclick="showModal('purchaseModal')">新增采购订单</button>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="totalPurchaseOrders">0</div>
+                    <div class="stat-label">采购订单总数</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="pendingPurchaseOrders">0</div>
+                    <div class="stat-label">待处理订单</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="totalPurchaseAmount">¥0</div>
+                    <div class="stat-label">采购总金额</div>
+                </div>
+            </div>
+
+            <div class="search-bar">
+                <input type="text" id="purchaseSearch" placeholder="搜索采购订单..." onkeyup="filterPurchaseData()">
+                <button class="btn btn-primary" onclick="loadPurchaseData()">刷新</button>
+            </div>
+
+            <table class="data-table" id="purchaseTable">
+                <thead>
+                    <tr>
+                        <th>订单号</th>
+                        <th>供应商</th>
+                        <th>订单日期</th>
+                        <th>总金额</th>
+                        <th>状态</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="purchaseTableBody">
+                    <tr>
+                        <td colspan="6" class="loading">加载中...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 销售管理 -->
+        <div id="sales" class="tab-content">
+            <div class="section-header">
+                <h2 class="section-title">销售管理</h2>
+                <button class="btn btn-primary" onclick="showModal('salesModal')">新增销售订单</button>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="totalSalesOrders">0</div>
+                    <div class="stat-label">销售订单总数</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="pendingSalesOrders">0</div>
+                    <div class="stat-label">待处理订单</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="totalSalesAmount">¥0</div>
+                    <div class="stat-label">销售总金额</div>
+                </div>
+            </div>
+
+            <div class="search-bar">
+                <input type="text" id="salesSearch" placeholder="搜索销售订单..." onkeyup="filterSalesData()">
+                <button class="btn btn-primary" onclick="loadSalesData()">刷新</button>
+            </div>
+
+            <table class="data-table" id="salesTable">
+                <thead>
+                    <tr>
+                        <th>订单号</th>
+                        <th>客户</th>
+                        <th>订单日期</th>
+                        <th>总金额</th>
+                        <th>状态</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="salesTableBody">
+                    <tr>
+                        <td colspan="6" class="loading">加载中...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 库存管理 -->
+        <div id="inventory" class="tab-content">
+            <div class="section-header">
+                <h2 class="section-title">库存管理</h2>
+                <div>
+                    <button class="btn btn-success" onclick="showModal('inventoryAdjustModal')">库存调整</button>
+                    <button class="btn btn-warning" onclick="showModal('inventoryTransferModal')">库存转移</button>
+                    <button class="btn btn-primary" onclick="showModal('inventoryCountModal')">库存盘点</button>
+                </div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="totalInventoryItems">0</div>
+                    <div class="stat-label">库存商品种类</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="lowStockItems">0</div>
+                    <div class="stat-label">低库存商品</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="totalInventoryValue">¥0</div>
+                    <div class="stat-label">库存总价值</div>
+                </div>
+            </div>
+
+            <div class="search-bar">
+                <input type="text" id="inventorySearch" placeholder="搜索库存商品..." onkeyup="filterInventoryData()">
+                <button class="btn btn-primary" onclick="loadInventoryData()">刷新</button>
+            </div>
+
+            <table class="data-table" id="inventoryTable">
+                <thead>
+                    <tr>
+                        <th>商品编码</th>
+                        <th>商品名称</th>
+                        <th>规格型号</th>
+                        <th>当前库存</th>
+                        <th>安全库存</th>
+                        <th>单位</th>
+                        <th>状态</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="inventoryTableBody">
+                    <tr>
+                        <td colspan="8" class="loading">加载中...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 采购订单模态框 -->
+    <div id="purchaseModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">新增采购订单</h3>
+                <span class="close" onclick="hideModal('purchaseModal')">&times;</span>
+            </div>
+            <form id="purchaseForm">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="purchaseOrderNo">订单号 *</label>
+                        <input type="text" id="purchaseOrderNo" class="form-control required" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="purchaseSupplier">供应商 *</label>
+                        <select id="purchaseSupplier" class="form-control required" required>
+                            <option value="">请选择供应商</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="purchaseDate">订单日期 *</label>
+                        <input type="date" id="purchaseDate" class="form-control required" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="purchaseExpectedDate">预期到货日期</label>
+                        <input type="date" id="purchaseExpectedDate" class="form-control">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="purchaseNotes">备注</label>
+                    <textarea id="purchaseNotes" class="form-control" rows="3"></textarea>
+                </div>
+                <div style="text-align: right; margin-top: 20px;">
+                    <button type="button" class="btn btn-secondary" onclick="hideModal('purchaseModal')">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 销售订单模态框 -->
+    <div id="salesModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">新增销售订单</h3>
+                <span class="close" onclick="hideModal('salesModal')">&times;</span>
+            </div>
+            <form id="salesForm">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="salesOrderNo">订单号 *</label>
+                        <input type="text" id="salesOrderNo" class="form-control required" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="salesCustomer">客户 *</label>
+                        <select id="salesCustomer" class="form-control required" required>
+                            <option value="">请选择客户</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="salesDate">订单日期 *</label>
+                        <input type="date" id="salesDate" class="form-control required" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="salesDeliveryDate">预期交货日期</label>
+                        <input type="date" id="salesDeliveryDate" class="form-control">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="salesNotes">备注</label>
+                    <textarea id="salesNotes" class="form-control" rows="3"></textarea>
+                </div>
+                <div style="text-align: right; margin-top: 20px;">
+                    <button type="button" class="btn btn-secondary" onclick="hideModal('salesModal')">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 库存调整模态框 -->
+    <div id="inventoryAdjustModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">库存调整</h3>
+                <span class="close" onclick="hideModal('inventoryAdjustModal')">&times;</span>
+            </div>
+            <form id="inventoryAdjustForm">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="adjustMaterial">商品 *</label>
+                        <select id="adjustMaterial" class="form-control required" required>
+                            <option value="">请选择商品</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="adjustType">调整类型 *</label>
+                        <select id="adjustType" class="form-control required" required>
+                            <option value="">请选择调整类型</option>
+                            <option value="increase">增加</option>
+                            <option value="decrease">减少</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="adjustQuantity">调整数量 *</label>
+                        <input type="number" id="adjustQuantity" class="form-control required" min="0" step="0.01" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="adjustDate">调整日期 *</label>
+                        <input type="date" id="adjustDate" class="form-control required" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="adjustReason">调整原因 *</label>
+                    <textarea id="adjustReason" class="form-control" rows="3" required></textarea>
+                </div>
+                <div style="text-align: right; margin-top: 20px;">
+                    <button type="button" class="btn btn-secondary" onclick="hideModal('inventoryAdjustModal')">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 库存转移模态框 -->
+    <div id="inventoryTransferModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">库存转移</h3>
+                <span class="close" onclick="hideModal('inventoryTransferModal')">&times;</span>
+            </div>
+            <form id="inventoryTransferForm">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="transferMaterial">商品 *</label>
+                        <select id="transferMaterial" class="form-control required" required>
+                            <option value="">请选择商品</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="transferFromLocation">源仓库 *</label>
+                        <select id="transferFromLocation" class="form-control required" required>
+                            <option value="">请选择源仓库</option>
+                            <option value="main">主仓库</option>
+                            <option value="backup">备用仓库</option>
+                            <option value="temp">临时仓库</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="transferToLocation">目标仓库 *</label>
+                        <select id="transferToLocation" class="form-control required" required>
+                            <option value="">请选择目标仓库</option>
+                            <option value="main">主仓库</option>
+                            <option value="backup">备用仓库</option>
+                            <option value="temp">临时仓库</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="transferQuantity">转移数量 *</label>
+                        <input type="number" id="transferQuantity" class="form-control required" min="0" step="0.01" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="transferDate">转移日期 *</label>
+                        <input type="date" id="transferDate" class="form-control required" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="transferReason">转移原因</label>
+                    <textarea id="transferReason" class="form-control" rows="3"></textarea>
+                </div>
+                <div style="text-align: right; margin-top: 20px;">
+                    <button type="button" class="btn btn-secondary" onclick="hideModal('inventoryTransferModal')">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 库存盘点模态框 -->
+    <div id="inventoryCountModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">库存盘点</h3>
+                <span class="close" onclick="hideModal('inventoryCountModal')">&times;</span>
+            </div>
+            <form id="inventoryCountForm">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="countMaterial">商品 *</label>
+                        <select id="countMaterial" class="form-control required" required>
+                            <option value="">请选择商品</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="countLocation">仓库位置 *</label>
+                        <select id="countLocation" class="form-control required" required>
+                            <option value="">请选择仓库</option>
+                            <option value="main">主仓库</option>
+                            <option value="backup">备用仓库</option>
+                            <option value="temp">临时仓库</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="systemQuantity">系统库存</label>
+                        <input type="number" id="systemQuantity" class="form-control" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label for="actualQuantity">实际库存 *</label>
+                        <input type="number" id="actualQuantity" class="form-control required" min="0" step="0.01" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="countDate">盘点日期 *</label>
+                        <input type="date" id="countDate" class="form-control required" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="countPerson">盘点人 *</label>
+                        <input type="text" id="countPerson" class="form-control required" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="countNotes">盘点备注</label>
+                    <textarea id="countNotes" class="form-control" rows="3"></textarea>
+                </div>
+                <div style="text-align: right; margin-top: 20px;">
+                    <button type="button" class="btn btn-secondary" onclick="hideModal('inventoryCountModal')">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // 全局变量
+        let purchaseData = [];
+        let salesData = [];
+        let inventoryData = [];
+        let suppliers = [];
+        let customers = [];
+        let materials = [];
+
+        // 页面加载时初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 设置默认日期为今天
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('purchaseDate').value = today;
+            document.getElementById('salesDate').value = today;
+            document.getElementById('adjustDate').value = today;
+            document.getElementById('transferDate').value = today;
+            document.getElementById('countDate').value = today;
+
+            // 加载初始数据
+            loadAllData();
+
+            // 绑定表单提交事件
+            bindFormEvents();
+        });
+
+        // 标签页切换
+        function showTab(tabName) {
+            // 隐藏所有标签页内容
+            const tabContents = document.querySelectorAll('.tab-content');
+            tabContents.forEach(content => content.classList.remove('active'));
+
+            // 移除所有标签页的活动状态
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach(tab => tab.classList.remove('active'));
+
+            // 显示选中的标签页
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+
+            // 根据标签页加载对应数据
+            switch(tabName) {
+                case 'purchase':
+                    loadPurchaseData();
+                    break;
+                case 'sales':
+                    loadSalesData();
+                    break;
+                case 'inventory':
+                    loadInventoryData();
+                    break;
+            }
+        }
+
+        // 模态框显示/隐藏
+        function showModal(modalId) {
+            document.getElementById(modalId).style.display = 'block';
+            
+            // 根据模态框类型加载相关数据
+            if (modalId === 'purchaseModal') {
+                loadSuppliersForSelect();
+                generatePurchaseOrderNo();
+            } else if (modalId === 'salesModal') {
+                loadCustomersForSelect();
+                generateSalesOrderNo();
+            } else if (modalId.includes('inventory')) {
+                loadMaterialsForSelect();
+            }
+        }
+
+        function hideModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+            // 重置表单
+            const form = document.querySelector(`#${modalId} form`);
+            if (form) {
+                form.reset();
+            }
+        }
+
+        // 加载所有数据
+        async function loadAllData() {
+            try {
+                // 显示加载状态
+                showLoadingState();
+                
+                // 按顺序加载数据，避免同时发送太多请求
+                await loadPurchaseData();
+                await loadSalesData();
+                await loadInventoryData();
+                await loadSuppliers();
+                await loadCustomers();
+                await loadMaterials();
+                
+                // 隐藏加载状态
+                hideLoadingState();
+            } catch (error) {
+                hideLoadingState();
+                showError('初始化数据加载失败: ' + error.message);
+            }
+        }
+        
+        function showLoadingState() {
+            // 在页面顶部显示加载提示
+            const loadingDiv = document.createElement('div');
+            loadingDiv.id = 'globalLoading';
+            loadingDiv.className = 'loading-overlay';
+            loadingDiv.innerHTML = '<div class="loading-spinner">正在加载数据...</div>';
+            document.body.appendChild(loadingDiv);
+        }
+        
+        function hideLoadingState() {
+            const loadingDiv = document.getElementById('globalLoading');
+            if (loadingDiv) {
+                loadingDiv.remove();
+            }
+        }
+
+        // 采购数据管理
+        async function loadPurchaseData() {
+            try {
+                const response = await sendMessage({
+                    action: 'load_purchase_orders'
+                });
+                if (response.success) {
+                    purchaseData = response.data || [];
+                    displayPurchaseData(purchaseData);
+                    updatePurchaseStats();
+                } else {
+                    showError('加载采购数据失败: ' + (response.error || '未知错误'));
+                }
+            } catch (error) {
+                showError('加载采购数据失败: ' + error.message);
+            }
+        }
+
+        function displayPurchaseData(data) {
+            const tbody = document.getElementById('purchaseTableBody');
+            if (!data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="loading">暂无采购订单数据</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = data.map(item => `
+                <tr>
+                    <td>${item.order_no || ''}</td>
+                    <td>${item.supplier_name || ''}</td>
+                    <td>${formatDate(item.order_date)}</td>
+                    <td>¥${formatNumber(item.total_amount || 0)}</td>
+                    <td><span class="status-badge status-${item.status || 'pending'}">${getStatusText(item.status)}</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-warning" onclick="editPurchaseOrder('${item.id}')">编辑</button>
+                        <button class="btn btn-sm btn-danger" onclick="deletePurchaseOrder('${item.id}')">删除</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function filterPurchaseData() {
+            const searchTerm = document.getElementById('purchaseSearch').value.toLowerCase();
+            const filteredData = purchaseData.filter(item => 
+                (item.order_no || '').toLowerCase().includes(searchTerm) ||
+                (item.supplier_name || '').toLowerCase().includes(searchTerm)
+            );
+            displayPurchaseData(filteredData);
+        }
+
+        function updatePurchaseStats() {
+            const total = purchaseData.length;
+            const pending = purchaseData.filter(item => item.status === 'pending').length;
+            const totalAmount = purchaseData.reduce((sum, item) => sum + (item.total_amount || 0), 0);
+
+            document.getElementById('totalPurchaseOrders').textContent = total;
+            document.getElementById('pendingPurchaseOrders').textContent = pending;
+            document.getElementById('totalPurchaseAmount').textContent = '¥' + formatNumber(totalAmount);
+        }
+
+        // 销售数据管理
+        async function loadSalesData() {
+            try {
+                const response = await sendMessage({
+                    action: 'load_sales_orders'
+                });
+                if (response.success) {
+                    salesData = response.data || [];
+                    displaySalesData(salesData);
+                    updateSalesStats();
+                } else {
+                    showError('加载销售数据失败: ' + (response.error || '未知错误'));
+                }
+            } catch (error) {
+                showError('加载销售数据失败: ' + error.message);
+            }
+        }
+
+        function displaySalesData(data) {
+            const tbody = document.getElementById('salesTableBody');
+            if (!data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="loading">暂无销售订单数据</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = data.map(item => `
+                <tr>
+                    <td>${item.order_no || ''}</td>
+                    <td>${item.customer_name || ''}</td>
+                    <td>${formatDate(item.order_date)}</td>
+                    <td>¥${formatNumber(item.total_amount || 0)}</td>
+                    <td><span class="status-badge status-${item.status || 'pending'}">${getStatusText(item.status)}</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-warning" onclick="editSalesOrder('${item.id}')">编辑</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteSalesOrder('${item.id}')">删除</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function filterSalesData() {
+            const searchTerm = document.getElementById('salesSearch').value.toLowerCase();
+            const filteredData = salesData.filter(item => 
+                (item.order_no || '').toLowerCase().includes(searchTerm) ||
+                (item.customer_name || '').toLowerCase().includes(searchTerm)
+            );
+            displaySalesData(filteredData);
+        }
+
+        function updateSalesStats() {
+            const total = salesData.length;
+            const pending = salesData.filter(item => item.status === 'pending').length;
+            const totalAmount = salesData.reduce((sum, item) => sum + (item.total_amount || 0), 0);
+
+            document.getElementById('totalSalesOrders').textContent = total;
+            document.getElementById('pendingSalesOrders').textContent = pending;
+            document.getElementById('totalSalesAmount').textContent = '¥' + formatNumber(totalAmount);
+        }
+
+        // 库存数据管理
+        async function loadInventoryData() {
+            try {
+                const response = await sendMessage({
+                    action: 'load_inventory_data'
+                });
+                if (response.success) {
+                    inventoryData = response.data || [];
+                    displayInventoryData(inventoryData);
+                    updateInventoryStats();
+                } else {
+                    showError('加载库存数据失败: ' + (response.error || '未知错误'));
+                }
+            } catch (error) {
+                showError('加载库存数据失败: ' + error.message);
+            }
+        }
+
+        function displayInventoryData(data) {
+            const tbody = document.getElementById('inventoryTableBody');
+            if (!data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="loading">暂无库存数据</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = data.map(item => {
+                const stockStatus = getStockStatus(item.current_stock, item.safety_stock);
+                return `
+                    <tr>
+                        <td>${item.material_code || ''}</td>
+                        <td>${item.material_name || ''}</td>
+                        <td>${item.material_model || ''}</td>
+                        <td>${formatNumber(item.current_stock || 0)}</td>
+                        <td>${formatNumber(item.safety_stock || 0)}</td>
+                        <td>${item.unit || ''}</td>
+                        <td><span class="status-badge status-${stockStatus.class}">${stockStatus.text}</span></td>
+                        <td>
+                            <button class="btn btn-sm btn-warning" onclick="adjustInventory('${item.material_code}')">调整</button>
+                            <button class="btn btn-sm btn-primary" onclick="viewInventoryHistory('${item.material_code}')">历史</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function filterInventoryData() {
+            const searchTerm = document.getElementById('inventorySearch').value.toLowerCase();
+            const filteredData = inventoryData.filter(item => 
+                (item.material_code || '').toLowerCase().includes(searchTerm) ||
+                (item.material_name || '').toLowerCase().includes(searchTerm) ||
+                (item.material_model || '').toLowerCase().includes(searchTerm)
+            );
+            displayInventoryData(filteredData);
+        }
+
+        function updateInventoryStats() {
+            const totalItems = inventoryData.length;
+            const lowStockItems = inventoryData.filter(item => 
+                (item.current_stock || 0) <= (item.safety_stock || 0)
+            ).length;
+            const totalValue = inventoryData.reduce((sum, item) => 
+                sum + ((item.current_stock || 0) * (item.unit_price || 0)), 0
+            );
+
+            document.getElementById('totalInventoryItems').textContent = totalItems;
+            document.getElementById('lowStockItems').textContent = lowStockItems;
+            document.getElementById('totalInventoryValue').textContent = '¥' + formatNumber(totalValue);
+        }
+
+        // 辅助数据加载
+        async function loadSuppliers() {
+            try {
+                const response = await sendMessage({
+                    action: 'load_suppliers'
+                });
+                if (response.success) {
+                    suppliers = response.data || [];
+                } else {
+                    console.error('加载供应商数据失败:', response.error);
+                }
+            } catch (error) {
+                console.error('加载供应商数据失败:', error);
+            }
+        }
+
+        async function loadCustomers() {
+            try {
+                const response = await sendMessage({
+                    action: 'load_customers'
+                });
+                if (response.success) {
+                    customers = response.data || [];
+                } else {
+                    console.error('加载客户数据失败:', response.error);
+                }
+            } catch (error) {
+                console.error('加载客户数据失败:', error);
+            }
+        }
+
+        async function loadMaterials() {
+            try {
+                const response = await sendMessage({
+                    action: 'load_materials'
+                });
+                if (response.success) {
+                    materials = response.data || [];
+                } else {
+                    console.error('加载物料数据失败:', response.error);
+                }
+            } catch (error) {
+                console.error('加载物料数据失败:', error);
+            }
+        }
+
+        // 下拉框数据填充
+        function loadSuppliersForSelect() {
+            const select = document.getElementById('purchaseSupplier');
+            select.innerHTML = '<option value="">请选择供应商</option>';
+            suppliers.forEach(supplier => {
+                const option = document.createElement('option');
+                option.value = supplier.supplier_code;
+                option.textContent = supplier.supplier_name;
+                select.appendChild(option);
+            });
+        }
+
+        function loadCustomersForSelect() {
+            const select = document.getElementById('salesCustomer');
+            select.innerHTML = '<option value="">请选择客户</option>';
+            customers.forEach(customer => {
+                const option = document.createElement('option');
+                option.value = customer.customer_code;
+                option.textContent = customer.customer_name;
+                select.appendChild(option);
+            });
+        }
+
+        function loadMaterialsForSelect() {
+            const selects = [
+                'adjustMaterial', 'transferMaterial', 'countMaterial'
+            ];
+            
+            selects.forEach(selectId => {
+                const select = document.getElementById(selectId);
+                if (select) {
+                    select.innerHTML = '<option value="">请选择商品</option>';
+                    materials.forEach(material => {
+                        const option = document.createElement('option');
+                        option.value = material.material_code;
+                        option.textContent = `${material.material_name} (${material.material_model})`;
+                        select.appendChild(option);
+                    });
+                }
+            });
+        }
+
+        // 表单事件绑定
+        function bindFormEvents() {
+            // 采购订单表单
+            document.getElementById('purchaseForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                savePurchaseOrder();
+            });
+
+            // 销售订单表单
+            document.getElementById('salesForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                saveSalesOrder();
+            });
+
+            // 库存调整表单
+            document.getElementById('inventoryAdjustForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                saveInventoryAdjustment();
+            });
+
+            // 库存转移表单
+            document.getElementById('inventoryTransferForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                saveInventoryTransfer();
+            });
+
+            // 库存盘点表单
+            document.getElementById('inventoryCountForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                saveInventoryCount();
+            });
+
+            // 库存盘点商品选择事件
+            document.getElementById('countMaterial').addEventListener('change', function() {
+                const materialCode = this.value;
+                if (materialCode) {
+                    const material = inventoryData.find(item => item.material_code === materialCode);
+                    if (material) {
+                        document.getElementById('systemQuantity').value = material.current_stock || 0;
+                    }
+                }
+            });
+        }
+
+        // 保存操作
+        function savePurchaseOrder() {
+            const formData = {
+                order_no: document.getElementById('purchaseOrderNo').value,
+                supplier_code: document.getElementById('purchaseSupplier').value,
+                order_date: document.getElementById('purchaseDate').value,
+                expected_date: document.getElementById('purchaseExpectedDate').value,
+                notes: document.getElementById('purchaseNotes').value,
+                status: 'pending'
+            };
+
+            sendMessage({
+                action: 'save_purchase_order',
+                data: formData
+            }).then(response => {
+                if (response.success) {
+                    showSuccess('采购订单保存成功');
+                    hideModal('purchaseModal');
+                    loadPurchaseData();
+                } else {
+                    showError('保存失败: ' + (response.error || '未知错误'));
+                }
+            }).catch(error => {
+                showError('保存失败: ' + error.message);
+            });
+        }
+
+        function saveSalesOrder() {
+            const formData = {
+                order_no: document.getElementById('salesOrderNo').value,
+                customer_code: document.getElementById('salesCustomer').value,
+                order_date: document.getElementById('salesDate').value,
+                delivery_date: document.getElementById('salesDeliveryDate').value,
+                notes: document.getElementById('salesNotes').value,
+                status: 'pending'
+            };
+
+            sendMessage({
+                action: 'save_sales_order',
+                data: formData
+            }).then(response => {
+                if (response.success) {
+                    showSuccess('销售订单保存成功');
+                    hideModal('salesModal');
+                    loadSalesData();
+                } else {
+                    showError('保存失败: ' + (response.error || '未知错误'));
+                }
+            }).catch(error => {
+                showError('保存失败: ' + error.message);
+            });
+        }
+
+        function saveInventoryAdjustment() {
+            const formData = {
+                material_code: document.getElementById('adjustMaterial').value,
+                adjust_type: document.getElementById('adjustType').value,
+                quantity: parseFloat(document.getElementById('adjustQuantity').value),
+                adjust_date: document.getElementById('adjustDate').value,
+                reason: document.getElementById('adjustReason').value
+            };
+
+            sendMessage({
+                action: 'save_inventory_adjustment',
+                data: formData
+            }).then(response => {
+                if (response.success) {
+                    showSuccess('库存调整保存成功');
+                    hideModal('inventoryAdjustModal');
+                    loadInventoryData();
+                } else {
+                    showError('保存失败: ' + (response.error || '未知错误'));
+                }
+            }).catch(error => {
+                showError('保存失败: ' + error.message);
+            });
+        }
+
+        function saveInventoryTransfer() {
+            const formData = {
+                material_code: document.getElementById('transferMaterial').value,
+                from_location: document.getElementById('transferFromLocation').value,
+                to_location: document.getElementById('transferToLocation').value,
+                quantity: parseFloat(document.getElementById('transferQuantity').value),
+                transfer_date: document.getElementById('transferDate').value,
+                reason: document.getElementById('transferReason').value
+            };
+
+            sendMessage({
+                action: 'save_inventory_transfer',
+                data: formData
+            }).then(response => {
+                if (response.success) {
+                    showSuccess('库存转移保存成功');
+                    hideModal('inventoryTransferModal');
+                    loadInventoryData();
+                } else {
+                    showError('保存失败: ' + (response.error || '未知错误'));
+                }
+            }).catch(error => {
+                showError('保存失败: ' + error.message);
+            });
+        }
+
+        function saveInventoryCount() {
+            const formData = {
+                material_code: document.getElementById('countMaterial').value,
+                location: document.getElementById('countLocation').value,
+                system_quantity: parseFloat(document.getElementById('systemQuantity').value),
+                actual_quantity: parseFloat(document.getElementById('actualQuantity').value),
+                count_date: document.getElementById('countDate').value,
+                count_person: document.getElementById('countPerson').value,
+                notes: document.getElementById('countNotes').value
+            };
+
+            sendMessage({
+                action: 'save_inventory_count',
+                data: formData
+            }).then(response => {
+                if (response.success) {
+                    showSuccess('库存盘点保存成功');
+                    hideModal('inventoryCountModal');
+                    loadInventoryData();
+                } else {
+                    showError('保存失败: ' + (response.error || '未知错误'));
+                }
+            }).catch(error => {
+                showError('保存失败: ' + error.message);
+            });
+        }
+
+        // 编号生成
+        function generatePurchaseOrderNo() {
+            const today = new Date();
+            const dateStr = today.getFullYear().toString() + 
+                           (today.getMonth() + 1).toString().padStart(2, '0') + 
+                           today.getDate().toString().padStart(2, '0');
+            const randomNum = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+            document.getElementById('purchaseOrderNo').value = 'PO' + dateStr + randomNum;
+        }
+
+        function generateSalesOrderNo() {
+            const today = new Date();
+            const dateStr = today.getFullYear().toString() + 
+                           (today.getMonth() + 1).toString().padStart(2, '0') + 
+                           today.getDate().toString().padStart(2, '0');
+            const randomNum = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+            document.getElementById('salesOrderNo').value = 'SO' + dateStr + randomNum;
+        }
+
+        // 工具函数
+        function formatDate(dateStr) {
+            if (!dateStr) return '';
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('zh-CN');
+        }
+
+        function formatNumber(num) {
+            if (typeof num !== 'number') return '0';
+            return num.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function getStatusText(status) {
+            const statusMap = {
+                'pending': '待处理',
+                'completed': '已完成',
+                'cancelled': '已取消'
+            };
+            return statusMap[status] || '未知';
+        }
+
+        function getStockStatus(currentStock, safetyStock) {
+            const current = currentStock || 0;
+            const safety = safetyStock || 0;
+            
+            if (current <= 0) {
+                return { class: 'cancelled', text: '缺货' };
+            } else if (current <= safety) {
+                return { class: 'pending', text: '低库存' };
+            } else {
+                return { class: 'completed', text: '正常' };
+            }
+        }
+
+        // 加载状态管理
+        function showLoadingState() {
+            // 创建加载遮罩层
+            let loadingOverlay = document.getElementById('loadingOverlay');
+            if (!loadingOverlay) {
+                loadingOverlay = document.createElement('div');
+                loadingOverlay.id = 'loadingOverlay';
+                loadingOverlay.className = 'loading-overlay';
+                loadingOverlay.innerHTML = '<div class="loading-spinner">正在加载数据...</div>';
+                document.body.appendChild(loadingOverlay);
+            }
+            loadingOverlay.style.display = 'flex';
+        }
+
+        function hideLoadingState() {
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            if (loadingOverlay) {
+                loadingOverlay.style.display = 'none';
+            }
+        }
+
+        // 消息通信
+        let pendingRequests = new Map();
+        let requestIdCounter = 0;
+
+        function sendMessage(message) {
+            return new Promise((resolve, reject) => {
+                if (typeof vscode !== 'undefined') {
+                    // 生成唯一的请求ID
+                    const requestId = ++requestIdCounter;
+                    message.requestId = requestId;
+                    
+                    // 存储请求的resolve和reject函数
+                    pendingRequests.set(requestId, { resolve, reject });
+                    
+                    // 发送消息
+                    vscode.postMessage(message);
+                    
+                    // 设置超时
+                    setTimeout(() => {
+                        if (pendingRequests.has(requestId)) {
+                            pendingRequests.delete(requestId);
+                            reject(new Error('请求超时'));
+                        }
+                    }, 10000);
+                } else {
+                    // 开发环境模拟
+                    setTimeout(() => {
+                        resolve({ success: true, data: [] });
+                    }, 100);
+                }
+            });
+        }
+
+        // 全局消息监听器
+        window.addEventListener('message', (event) => {
+            const response = event.data;
+            if (response.requestId && pendingRequests.has(response.requestId)) {
+                const { resolve } = pendingRequests.get(response.requestId);
+                pendingRequests.delete(response.requestId);
+                resolve(response);
+            }
+        });
+
+        // 消息显示
+        function showError(message) {
+            // 创建错误提示元素
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error';
+            errorDiv.textContent = message;
+            
+            // 插入到页面顶部
+            const container = document.querySelector('.container');
+            container.insertBefore(errorDiv, container.firstChild);
+            
+            // 3秒后自动移除
+            setTimeout(() => {
+                if (errorDiv.parentNode) {
+                    errorDiv.parentNode.removeChild(errorDiv);
+                }
+            }, 3000);
+        }
+
+        function showSuccess(message) {
+            // 创建成功提示元素
+            const successDiv = document.createElement('div');
+            successDiv.className = 'success';
+            successDiv.textContent = message;
+            
+            // 插入到页面顶部
+            const container = document.querySelector('.container');
+            container.insertBefore(successDiv, container.firstChild);
+            
+            // 3秒后自动移除
+            setTimeout(() => {
+                if (successDiv.parentNode) {
+                    successDiv.parentNode.removeChild(successDiv);
+                }
+            }, 3000);
+        }
+
+        // 编辑和删除操作（占位符函数）
+        function editPurchaseOrder(id) {
+            showError('编辑功能开发中...');
+        }
+
+        function deletePurchaseOrder(id) {
+            if (confirm('确定要删除这个采购订单吗？')) {
+                sendMessage({
+                    action: 'delete_purchase_order',
+                    id: id
+                }).then(response => {
+                    if (response.success) {
+                        showSuccess('删除成功');
+                        loadPurchaseData();
+                    } else {
+                        showError('删除失败: ' + (response.error || '未知错误'));
+                    }
+                }).catch(error => {
+                    showError('删除失败: ' + error.message);
+                });
+            }
+        }
+
+        function editSalesOrder(id) {
+            showError('编辑功能开发中...');
+        }
+
+        function deleteSalesOrder(id) {
+            if (confirm('确定要删除这个销售订单吗？')) {
+                sendMessage({
+                    action: 'delete_sales_order',
+                    id: id
+                }).then(response => {
+                    if (response.success) {
+                        showSuccess('删除成功');
+                        loadSalesData();
+                    } else {
+                        showError('删除失败: ' + (response.error || '未知错误'));
+                    }
+                }).catch(error => {
+                    showError('删除失败: ' + error.message);
+                });
+            }
+        }
+
+        function adjustInventory(materialCode) {
+            document.getElementById('adjustMaterial').value = materialCode;
+            showModal('inventoryAdjustModal');
+        }
+
+        function viewInventoryHistory(materialCode) {
+            showError('库存历史查看功能开发中...');
+        }
+
+        // 点击模态框外部关闭
+        window.onclick = function(event) {
+            const modals = document.querySelectorAll('.modal');
+            modals.forEach(modal => {
+                if (event.target === modal) {
+                    modal.style.display = 'none';
+                }
+            });
+        }

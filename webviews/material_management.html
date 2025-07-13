@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>物料管理系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--vscode-editor-background);
+            color: var(--vscode-editor-foreground);
+            padding: 8px;
+            line-height: 1.2;
+            font-size: 9px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 8px;
+            padding: 6px;
+            background: var(--vscode-panel-background);
+            border-radius: 2px;
+            border: 1px solid var(--vscode-panel-border);
+        }
+
+        .header h1 {
+            color: var(--vscode-textLink-foreground);
+            margin-bottom: 3px;
+            font-size: 12px;
+        }
+
+        .header p {
+            color: var(--vscode-descriptionForeground);
+            font-size: 9px;
+        }
+
+        .tabs {
+            display: flex;
+            margin-bottom: 6px;
+            background: var(--vscode-panel-background);
+            border-radius: 2px;
+            overflow: hidden;
+            border: 1px solid var(--vscode-panel-border);
+        }
+
+        .tab {
+            flex: 1;
+            padding: 8px 12px;
+            background: var(--vscode-tab-inactiveBackground);
+            color: var(--vscode-tab-inactiveForeground);
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 9px;
+            font-weight: 500;
+        }
+
+        .tab:hover {
+            background: var(--vscode-tab-hoverBackground);
+        }
+
+        .tab.active {
+            background: var(--vscode-tab-activeBackground);
+            color: var(--vscode-tab-activeForeground);
+            border-bottom: 2px solid var(--vscode-textLink-foreground);
+        }
+
+        .tab-content {
+            display: none;
+            background: var(--vscode-panel-background);
+            padding: 8px;
+            border-radius: 2px;
+            border: 1px solid var(--vscode-panel-border);
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 6px;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+
+        .form-col {
+            flex: 1;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 2px;
+            font-weight: 500;
+            color: var(--vscode-input-foreground);
+            font-size: 9px;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 6px 8px;
+            background: var(--vscode-input-background);
+            color: var(--vscode-input-foreground);
+            border: 1px solid var(--vscode-input-border);
+            border-radius: 2px;
+            font-size: 9px;
+            transition: border-color 0.3s ease;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--vscode-focusBorder);
+            box-shadow: 0 0 0 1px var(--vscode-focusBorder);
+        }
+
+        .btn {
+            padding: 6px 12px;
+            background: var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
+            border: none;
+            border-radius: 2px;
+            cursor: pointer;
+            font-size: 9px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            margin-right: 6px;
+        }
+
+        .btn:hover {
+            background: var(--vscode-button-hoverBackground);
+        }
+
+        .btn-secondary {
+            background: var(--vscode-button-secondaryBackground);
+            color: var(--vscode-button-secondaryForeground);
+        }
+
+        .btn-secondary:hover {
+            background: var(--vscode-button-secondaryHoverBackground);
+        }
+
+        .code-preview {
+            background: var(--vscode-textCodeBlock-background);
+            padding: 8px;
+            border-radius: 2px;
+            font-family: 'Courier New', monospace;
+            font-size: 10px;
+            font-weight: bold;
+            color: var(--vscode-textLink-foreground);
+            border: 1px solid var(--vscode-panel-border);
+            margin: 6px 0;
+            text-align: center;
+        }
+
+        .encoding-rules {
+            background: var(--vscode-textBlockQuote-background);
+            padding: 8px;
+            border-radius: 2px;
+            border-left: 2px solid var(--vscode-textLink-foreground);
+            margin: 6px 0;
+        }
+
+        .encoding-rules h3 {
+            color: var(--vscode-textLink-foreground);
+            margin-bottom: 4px;
+            font-size: 10px;
+        }
+
+        .encoding-rules table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        .encoding-rules th,
+        .encoding-rules td {
+            padding: 3px 6px;
+            text-align: left;
+            border-bottom: 1px solid var(--vscode-panel-border);
+            font-size: 9px;
+        }
+
+        .encoding-rules th {
+            background: var(--vscode-panel-background);
+            font-weight: 600;
+        }
+
+        .material-list {
+            margin-top: 6px;
+        }
+
+        .material-item {
+            background: var(--vscode-list-inactiveSelectionBackground);
+            padding: 6px;
+            margin-bottom: 3px;
+            border-radius: 2px;
+            border: 1px solid var(--vscode-panel-border);
+        }
+
+        .material-code {
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            color: var(--vscode-textLink-foreground);
+            font-size: 10px;
+        }
+
+        .material-info {
+            margin-top: 2px;
+            color: var(--vscode-descriptionForeground);
+            font-size: 8px;
+        }
+
+        .status-message {
+            padding: 4px 6px;
+            border-radius: 2px;
+            margin: 4px 0;
+            font-weight: 500;
+            font-size: 9px;
+        }
+
+        .status-success {
+            background: var(--vscode-testing-iconPassed);
+            color: white;
+        }
+
+        .status-error {
+            background: var(--vscode-testing-iconFailed);
+            color: white;
+        }
+
+        .status-warning {
+            background: var(--vscode-testing-iconQueued);
+            color: white;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 3px solid var(--vscode-panel-border);
+            border-top: 3px solid var(--vscode-textLink-foreground);
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏭 物料管理系统</h1>
+            <p>标准化物料编码管理 | 符合 P-12-03-0000-001 规范</p>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" onclick="showTab(event, 'add-material')">➕ 新增物料</button>
+            <button class="tab" onclick="showTab(event, 'material-list')">📋 物料列表</button>
+            <button class="tab" onclick="showTab(event, 'encoding-rules')">📖 编码规则</button>
+            <button class="tab" onclick="showTab(event, 'supplier-codes')">🏢 供应商编码</button>
+        </div>
+
+        <!-- 新增物料 -->
+        <div id="add-material" class="tab-content active">
+            <form id="materialForm">
+                <div class="form-row">
+                    <div class="form-col">
+                        <label for="platform">物料平台 *</label>
+                        <select id="platform" name="platform" required onchange="updateCodePreview()">
+                            <option value="">请选择平台</option>
+                            <option value="P">P - 采购物料</option>
+                            <option value="R">R - 自研物料</option>
+                        </select>
+                    </div>
+                    <div class="form-col">
+                        <label for="type1">物料类型2 *</label>
+                        <select id="type1" name="type1" required onchange="updateCodePreview()">
+                            <option value="">请选择类型</option>
+                            <option value="1">1 - 国产</option>
+                            <option value="2">2 - 非国产</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-col">
+                        <label for="type2">物料类型3 *</label>
+                        <select id="type2" name="type2" required onchange="updateCodePreview()">
+                            <option value="">请选择分类</option>
+                            <option value="1">1 - 纯软件</option>
+                            <option value="2">2 - 服务器(硬件)</option>
+                            <option value="3">3 - 工控机(硬件)</option>
+                            <option value="4">4 - 配件</option>
+                        </select>
+                    </div>
+                    <div class="form-col">
+                        <label for="supplier">供应商 *</label>
+                        <select id="supplier" name="supplier" required onchange="updateCodePreview()">
+                            <option value="">请选择供应商</option>
+                            <!-- 供应商选项将通过JavaScript动态加载 -->
+                        </select>
+                    </div>
+                </div>
+
+                <div class="code-preview" id="codePreview">
+                    物料编码预览: 请填写上述信息
+                </div>
+
+                <div class="form-row">
+                    <div class="form-col">
+                        <label for="materialName">物料名称 *</label>
+                        <input type="text" id="materialName" name="materialName" required 
+                               placeholder="例如: 工控机">
+                    </div>
+                    <div class="form-col">
+                        <label for="materialModel">物料型号 *</label>
+                        <input type="text" id="materialModel" name="materialModel" required 
+                               placeholder="例如: 1U-C3558-4电2光-128G MSATA盘-单电源">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-col">
+                        <label for="hardwarePlatform">硬件平台</label>
+                        <input type="text" id="hardwarePlatform" name="hardwarePlatform" 
+                               placeholder="例如: x86, ARM, 通用">
+                    </div>
+                    <div class="form-col">
+                        <label for="unit">单位 *</label>
+                        <select id="unit" name="unit" required>
+                            <option value="台">台</option>
+                            <option value="个">个</option>
+                            <option value="套">套</option>
+                            <option value="张">张</option>
+                            <option value="块">块</option>
+                            <option value="条">条</option>
+                            <option value="根">根</option>
+                            <option value="片">片</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <button type="submit" class="btn">💾 添加物料</button>
+                    <button type="reset" class="btn btn-secondary" onclick="resetForm()">🔄 重置表单</button>
+                </div>
+            </form>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>正在添加物料...</p>
+            </div>
+
+            <div id="statusMessage"></div>
+        </div>
+
+        <!-- 物料列表 -->
+        <div id="material-list" class="tab-content">
+            <div class="form-group">
+                <button class="btn" onclick="loadMaterialList()">🔄 刷新列表</button>
+                <button class="btn btn-secondary" onclick="exportMaterialList()">📤 导出列表</button>
+            </div>
+            <div id="materialListContainer">
+                <p>点击"刷新列表"加载物料数据</p>
+            </div>
+        </div>
+
+        <!-- 编码规则 -->
+        <div id="encoding-rules" class="tab-content">
+            <div class="encoding-rules">
+                <h3>📋 编码格式说明</h3>
+                <p><strong>标准格式:</strong> <code>P-12-03-0000-001</code></p>
+                <p>编码由5个部分组成，用短横线分隔:</p>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th>位置</th>
+                            <th>含义</th>
+                            <th>取值范围</th>
+                            <th>说明</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>第1位</td>
+                            <td>物料平台</td>
+                            <td>P, R</td>
+                            <td>P=采购物料, R=自研物料</td>
+                        </tr>
+                        <tr>
+                            <td>第2位</td>
+                            <td>物料类型2</td>
+                            <td>1, 2</td>
+                            <td>1=国产, 2=非国产</td>
+                        </tr>
+                        <tr>
+                            <td>第3位</td>
+                            <td>物料类型3</td>
+                            <td>1-4</td>
+                            <td>1=纯软件, 2=服务器, 3=工控机, 4=配件</td>
+                        </tr>
+                        <tr>
+                            <td>第4-5位</td>
+                            <td>供应商编码</td>
+                            <td>01-99</td>
+                            <td>在供应商列表中预定义</td>
+                        </tr>
+                        <tr>
+                            <td>第6-9位</td>
+                            <td>保留位</td>
+                            <td>0000</td>
+                            <td>固定值，预留扩展</td>
+                        </tr>
+                        <tr>
+                            <td>第10-12位</td>
+                            <td>物料序号</td>
+                            <td>001-999</td>
+                            <td>同类别下递增序号</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>🔢 编码示例</h3>
+                <ul>
+                    <li><code>P-13-05-0000-001</code> - 采购的国产工控机，供应商05，序号001</li>
+                    <li><code>P-24-05-0000-001</code> - 采购的非国产配件，供应商05，序号001</li>
+                    <li><code>R-11-05-0000-001</code> - 自研的国产软件，供应商05，序号001</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- 供应商编码 -->
+        <div id="supplier-codes" class="tab-content">
+            <div class="form-group">
+                <button class="btn" onclick="loadSupplierCodes()">🔄 刷新编码</button>
+                <button class="btn btn-secondary" onclick="assignSupplierCodes()">🏷️ 分配编码</button>
+            </div>
+            <div id="supplierCodesContainer">
+                <p>点击"刷新编码"加载供应商编码数据</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // VSCode API
+        const vscode = acquireVsCodeApi();
+
+        // 当前选中的供应商信息
+        let suppliers = [];
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSuppliers();
+            setupFormSubmission();
+        });
+
+        // 切换标签页
+        function showTab(event, tabName) {
+            // 隐藏所有标签内容
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // 移除所有标签的激活状态
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // 显示选中的标签内容
+            document.getElementById(tabName).classList.add('active');
+            
+            // 激活对应的标签
+            if(event.target) {
+                event.target.classList.add('active');
+            }
+        }
+
+        // 加载供应商列表
+        function loadSuppliers() {
+            vscode.postMessage({
+                command: 'loadSuppliers'
+            });
+        }
+
+        // 更新编码预览
+        function updateCodePreview() {
+            const platform = document.getElementById('platform').value;
+            const type1 = document.getElementById('type1').value;
+            const type2 = document.getElementById('type2').value;
+            const supplierSelect = document.getElementById('supplier');
+            const supplierCode = supplierSelect.value;
+            
+            const preview = document.getElementById('codePreview');
+            
+            if (platform && type1 && type2 && supplierCode) {
+                const code = `${platform}-${type1}${type2}-${supplierCode}-0000-XXX`;
+                preview.textContent = `物料编码预览: ${code}`;
+                preview.style.color = 'var(--vscode-textLink-foreground)';
+            } else {
+                preview.textContent = '物料编码预览: 请填写上述信息';
+                preview.style.color = 'var(--vscode-descriptionForeground)';
+            }
+        }
+
+        // 设置表单提交
+        function setupFormSubmission() {
+            document.getElementById('materialForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const formData = new FormData(this);
+                const materialData = {
+                    platform: formData.get('platform'),
+                    type1: formData.get('type1'),
+                    type2: formData.get('type2'),
+                    supplier_code: formData.get('supplier'),
+                    supplier_name: getSupplierName(formData.get('supplier')),
+                    material_name: formData.get('materialName'),
+                    material_model: formData.get('materialModel'),
+                    hardware_platform: formData.get('hardwarePlatform') || '',
+                    unit: formData.get('unit')
+                };
+                
+                // 显示加载状态
+                document.getElementById('loading').style.display = 'block';
+                document.getElementById('statusMessage').innerHTML = '';
+                
+                // 发送到后端
+                vscode.postMessage({
+                    command: 'addMaterial',
+                    data: materialData
+                });
+            });
+        }
+
+        // 获取供应商名称
+        function getSupplierName(supplierCode) {
+            const supplier = suppliers.find(s => s.supplier_code === supplierCode);
+            return supplier ? supplier.supplier_name : '';
+        }
+
+        // 重置表单
+        function resetForm() {
+            document.getElementById('materialForm').reset();
+            updateCodePreview();
+            document.getElementById('statusMessage').innerHTML = '';
+        }
+
+        // 加载物料列表
+        function loadMaterialList() {
+            vscode.postMessage({
+                command: 'loadMaterials'
+            });
+        }
+
+        // 导出物料列表
+        function exportMaterialList() {
+            vscode.postMessage({
+                command: 'exportMaterials'
+            });
+        }
+
+        // 加载供应商编码
+        function loadSupplierCodes() {
+            vscode.postMessage({
+                command: 'loadSupplierCodes'
+            });
+        }
+
+        // 分配供应商编码
+        function assignSupplierCodes() {
+            vscode.postMessage({
+                command: 'assignSupplierCodes'
+            });
+        }
+
+        // 显示状态消息
+        function showStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('statusMessage');
+            statusDiv.innerHTML = `<div class="status-message status-${type}">${message}</div>`;
+            
+            // 隐藏加载状态
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        // 监听来自VSCode的消息
+        window.addEventListener('message', event => {
+            const message = event.data;
+            
+            switch (message.command) {
+                case 'suppliersLoaded':
+                    suppliers = message.data;
+                    updateSupplierSelect(message.data);
+                    break;
+                    
+                case 'materialAdded':
+                    if (message.success) {
+                        showStatus(`✅ 物料添加成功！编码: ${message.materialCode}`, 'success');
+                        resetForm();
+                    } else {
+                        showStatus(`❌ 添加失败: ${message.error}`, 'error');
+                    }
+                    break;
+                    
+                case 'materialsLoaded':
+                    updateMaterialList(message.data);
+                    break;
+                    
+                case 'supplierCodesLoaded':
+                    updateSupplierCodesList(message.data);
+                    break;
+                    
+                case 'error':
+                    showStatus(`❌ 错误: ${message.message}`, 'error');
+                    break;
+            }
+        });
+
+        // 更新供应商下拉列表
+        function updateSupplierSelect(supplierData) {
+            const select = document.getElementById('supplier');
+            select.innerHTML = '<option value="">请选择供应商</option>';
+            
+            supplierData.forEach(supplier => {
+                if (supplier.supplier_code) {
+                    const option = document.createElement('option');
+                    option.value = supplier.supplier_code;
+                    option.textContent = `${supplier.supplier_code} - ${supplier.supplier_name}`;
+                    select.appendChild(option);
+                }
+            });
+        }
+
+        // 更新物料列表
+        function updateMaterialList(materials) {
+            const container = document.getElementById('materialListContainer');
+            
+            if (!materials || materials.length === 0) {
+                container.innerHTML = '<p>暂无物料数据</p>';
+                return;
+            }
+            
+            let html = '<div class="material-list">';
+            materials.forEach(material => {
+                html += `
+                    <div class="material-item">
+                        <div class="material-code">${material.material_code}</div>
+                        <div class="material-info">
+                            <strong>${material.material_name}</strong> - ${material.material_model}<br>
+                            供应商: ${material.supplier_name || '未知'} | 单位: ${material.unit} | 平台: ${material.platform || '--'}
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            
+            container.innerHTML = html;
+        }
+
+        // 更新供应商编码列表
+        function updateSupplierCodesList(suppliers) {
+            const container = document.getElementById('supplierCodesContainer');
+            
+            if (!suppliers || suppliers.length === 0) {
+                container.innerHTML = '<p>暂无供应商编码数据</p>';
+                return;
+            }
+            
+            let html = '<div class="material-list">';
+            suppliers.forEach(supplier => {
+                const code = supplier.supplier_code || '--';
+                const name = supplier.supplier_name || '未知供应商';
+                html += `
+                    <div class="material-item">
+                        <div class="material-code">${code}</div>
+                        <div class="material-info">${name}</div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            
+            container.innerHTML = html;
+        }
+    </script>
+</body>
+</html>

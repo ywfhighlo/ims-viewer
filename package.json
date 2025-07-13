@@ -1,0 +1,215 @@
+{
+  "name": "ims-viewer",
+  "displayName": "IMS Viewer",
+  "description": "A viewer for Inventory Management System, allows importing from Excel and viewing data.",
+  "version": "0.0.1",
+  "publisher": "ywfhighlo",
+  "author": {
+    "name": "余文锋",
+    "email": "9091887872@qq.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ywfhighlo/ims-viewer.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ywfhighlo/ims-viewer/issues"
+  },
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished",
+    "onCommand:ims.convertToJson",
+    "onCommand:ims.showInventoryManagement",
+    "onCommand:ims.showMaterialManagement",
+    "onCommand:ims.showDataEntry"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "ims-viewer-container",
+          "title": "IMS Viewer",
+          "icon": "$(database)"
+        }
+      ]
+    },
+    "views": {
+      "ims-viewer-container": [
+        {
+          "id": "ims-viewer",
+          "name": "IMS Viewer",
+          "contextualTitle": "IMS Viewer"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "ims.convertToJson",
+        "title": "Excel转为JSON",
+        "category": "IMS Viewer"
+      },
+      {
+        "command": "ims.migrateToNewFormat",
+        "title": "完整数据迁移流程",
+        "category": "IMS Viewer"
+      },
+      {
+        "command": "ims.addMaterial",
+        "title": "添加物料",
+        "category": "IMS Viewer",
+        "icon": "$(add)"
+      },
+      {
+        "command": "ims.showMaterialManagement",
+        "title": "打开物料管理",
+        "category": "IMS Viewer",
+        "icon": "$(package)"
+      },
+      {
+        "command": "ims.showDataEntry",
+        "title": "数据录入管理",
+        "category": "IMS Viewer",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "ims.showInventoryManagement",
+        "title": "进销存管理",
+        "category": "IMS Viewer",
+        "icon": "$(archive)"
+      },
+      {
+        "command": "ims.openSettings",
+        "title": "打开IMS设置",
+        "category": "IMS Viewer",
+        "icon": "$(settings-gear)"
+      }
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "when": "resourceExtname == .xlsx",
+          "command": "ims.convertToJson",
+          "group": "1_ims@1"
+        },
+        {
+          "when": "resourceExtname == .xlsx",
+          "command": "ims.migrateToNewFormat",
+          "group": "1_ims@2"
+        },
+        {
+          "command": "ims.openSettings",
+          "group": "1_ims@3"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "ims.addMaterial",
+          "when": "view == ims-viewer",
+          "group": "navigation"
+        },
+        {
+          "command": "ims.showMaterialManagement",
+          "when": "view == ims-viewer",
+          "group": "navigation"
+        },
+        {
+          "command": "ims.showDataEntry",
+          "when": "view == ims-viewer",
+          "group": "navigation"
+        },
+        {
+          "command": "ims.showInventoryManagement",
+          "when": "view == ims-viewer",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "ims.addMaterial",
+          "when": "view == ims-viewer && viewItem == materialManagementRoot",
+          "group": "inline"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "IMS Viewer",
+      "properties": {
+        "imsViewer.databaseName": {
+          "type": "string",
+          "default": "ims_database",
+          "description": "MongoDB数据库名称"
+        },
+        "imsViewer.mongoUri": {
+          "type": "string",
+          "default": "mongodb://localhost:27017/",
+          "description": "MongoDB连接URI"
+        },
+        "imsViewer.mongoUsername": {
+          "type": "string",
+          "default": "",
+          "description": "MongoDB用户名（可选）"
+        },
+        "imsViewer.mongoPassword": {
+          "type": "string",
+          "default": "",
+          "description": "MongoDB密码（可选）"
+        },
+        "imsViewer.mongoAuthDatabase": {
+          "type": "string",
+          "default": "admin",
+          "description": "MongoDB认证数据库"
+        },
+        "imsViewer.tableFontSize": {
+          "type": "number",
+          "default": 12,
+          "minimum": 8,
+          "maximum": 24,
+          "description": "数据库表和业务视图表格的字体大小（像素）"
+        },
+        "imsViewer.outputMode": {
+          "type": "string",
+          "enum": ["development", "temp", "custom"],
+          "enumDescriptions": [
+            "开发模式：文件保存在扩展的docs目录中，便于开发时查看",
+            "临时目录模式：文件保存在系统临时目录中，脱离开发环境",
+            "自定义模式：文件保存在用户指定的目录中"
+          ],
+          "default": "development",
+          "description": "JSON文件输出模式"
+        },
+        "imsViewer.customOutputPath": {
+          "type": "string",
+          "default": "",
+          "description": "自定义输出路径（仅在输出模式为'custom'时使用）"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "package": "vsce package"
+  },
+  "dependencies": {
+    "mongodb": "^5.0.0",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@types/node": "16.x",
+    "@types/vscode": "^1.75.0",
+    "@typescript-eslint/eslint-plugin": "^5.31.0",
+    "@typescript-eslint/parser": "^5.31.0",
+    "@vscode/vsce": "^2.15.0",
+    "eslint": "^8.20.0",
+    "typescript": "^4.7.4"
+  }
+}

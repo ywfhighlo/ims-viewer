@@ -1,0 +1,506 @@
+{
+  "metadata": {
+    "version": "1.0.0",
+    "created_date": "2025-01-08",
+    "description": "IMS Viewer统一中英文字段映射词典 - 所有翻译的单一数据源",
+    "maintainer": "系统管理员"
+  },
+  "field_dictionary": {
+    "供应商名称": {
+      "english": "supplier_name",
+      "data_type": "string",
+      "description": "供应商的名称",
+      "category": "supplier"
+    },
+    "统一社会信用代码": {
+      "english": "credit_code",
+      "data_type": "string",
+      "description": "统一社会信用代码",
+      "category": "identification"
+    },
+    "单位地址": {
+      "english": "address",
+      "data_type": "string",
+      "description": "单位地址",
+      "category": "contact"
+    },
+    "联系人": {
+      "english": "contact_person",
+      "data_type": "string",
+      "description": "联系人姓名",
+      "category": "contact"
+    },
+    "职务": {
+      "english": "position",
+      "data_type": "string",
+      "description": "联系人职务",
+      "category": "contact"
+    },
+    "联系电话": {
+      "english": "phone",
+      "data_type": "string",
+      "description": "联系电话号码",
+      "category": "contact"
+    },
+    "备注信息": {
+      "english": "remarks",
+      "data_type": "string",
+      "description": "备注说明",
+      "category": "general"
+    },
+    "客户名称": {
+      "english": "customer_name",
+      "data_type": "string",
+      "description": "客户的名称",
+      "category": "customer"
+    },
+    "法人": {
+      "english": "legal_person",
+      "data_type": "string",
+      "description": "法人代表姓名",
+      "category": "identification"
+    },
+    "合作产品": {
+      "english": "cooperation_products",
+      "data_type": "string",
+      "description": "合作的产品信息",
+      "category": "business"
+    },
+    "进货物料编码": {
+      "english": "material_code",
+      "data_type": "string",
+      "description": "物料的唯一编码",
+      "category": "material"
+    },
+    "进货物料名称": {
+      "english": "material_name",
+      "data_type": "string",
+      "description": "物料名称",
+      "category": "material"
+    },
+    "进货规格型号": {
+      "english": "specification",
+      "data_type": "string",
+      "description": "物料规格型号",
+      "category": "material"
+    },
+    "单位": {
+      "english": "unit",
+      "data_type": "string",
+      "description": "计量单位",
+      "category": "measurement"
+    },
+    "期初数量": {
+      "english": "initial_quantity",
+      "data_type": "number",
+      "description": "期初库存数量",
+      "category": "inventory"
+    },
+    "安全库存": {
+      "english": "safety_stock",
+      "data_type": "number",
+      "description": "安全库存数量",
+      "category": "inventory"
+    },
+    "参数说明": {
+      "english": "parameter_description",
+      "data_type": "string",
+      "description": "参数详细说明",
+      "category": "description"
+    },
+    "经办人": {
+      "english": "handler",
+      "data_type": "string",
+      "description": "经办人姓名",
+      "category": "personnel"
+    },
+    "单号": {
+      "english": "order_number",
+      "data_type": "string",
+      "description": "订单号/单据号",
+      "category": "identification"
+    },
+    "入库日期": {
+      "english": "inbound_date",
+      "data_type": "date",
+      "description": "入库日期",
+      "category": "date"
+    },
+    "数量": {
+      "english": "quantity",
+      "data_type": "number",
+      "description": "数量",
+      "category": "measurement"
+    },
+    "进货单价": {
+      "english": "purchase_unit_price",
+      "data_type": "number",
+      "description": "进货单价",
+      "category": "price"
+    },
+    "金额": {
+      "english": "amount",
+      "data_type": "number",
+      "description": "金额",
+      "category": "financial"
+    },
+    "开票日期": {
+      "english": "invoice_date",
+      "data_type": "date",
+      "description": "开票日期",
+      "category": "date"
+    },
+    "备注": {
+      "english": "remarks",
+      "data_type": "string",
+      "description": "备注说明",
+      "category": "general"
+    },
+    "出库日期": {
+      "english": "outbound_date",
+      "data_type": "date",
+      "description": "出库日期",
+      "category": "date"
+    },
+    "出库单价": {
+      "english": "outbound_unit_price",
+      "data_type": "number",
+      "description": "出库单价",
+      "category": "price"
+    },
+    "出库金额": {
+      "english": "outbound_amount",
+      "data_type": "number",
+      "description": "出库总金额",
+      "category": "financial"
+    },
+    "客户": {
+      "english": "customer_name",
+      "data_type": "string",
+      "description": "客户名称",
+      "category": "customer"
+    },
+    "进货金额": {
+      "english": "purchase_amount",
+      "data_type": "number",
+      "description": "进货金额",
+      "category": "financial"
+    },
+    "销售产品名称": {
+      "english": "sales_product_name",
+      "data_type": "string",
+      "description": "销售产品名称",
+      "category": "product"
+    },
+    "销售产品型号": {
+      "english": "sales_product_model",
+      "data_type": "string",
+      "description": "销售产品型号",
+      "category": "product"
+    },
+    "商城单号": {
+      "english": "mall_order_number",
+      "data_type": "string",
+      "description": "商城订单号",
+      "category": "identification"
+    },
+    "付款日期": {
+      "english": "payment_date",
+      "data_type": "date",
+      "description": "付款日期",
+      "category": "date"
+    },
+    "付款方式": {
+      "english": "payment_method",
+      "data_type": "string",
+      "description": "付款方式",
+      "category": "financial"
+    },
+    "收款日期": {
+      "english": "receipt_date",
+      "data_type": "date",
+      "description": "收款日期",
+      "category": "date"
+    },
+    "收款方式": {
+      "english": "receipt_method",
+      "data_type": "string",
+      "description": "收款方式",
+      "category": "financial"
+    },
+    "入库": {
+      "english": "inbound_quantity",
+      "data_type": "number",
+      "description": "入库数量",
+      "category": "inventory"
+    },
+    "入库数量": {
+      "english": "inbound_quantity",
+      "data_type": "number",
+      "description": "入库数量",
+      "category": "inventory"
+    },
+    "入库金额": {
+      "english": "inbound_amount",
+      "data_type": "number",
+      "description": "入库金额",
+      "category": "financial"
+    },
+    "出库": {
+      "english": "outbound_quantity",
+      "data_type": "number",
+      "description": "出库数量",
+      "category": "inventory"
+    },
+    "出库数量": {
+      "english": "outbound_quantity",
+      "data_type": "number",
+      "description": "出库数量",
+      "category": "inventory"
+    },
+    "出库金额": {
+      "english": "outbound_amount",
+      "data_type": "number",
+      "description": "出库金额",
+      "category": "financial"
+    },
+    "库存数量": {
+      "english": "stock_quantity",
+      "data_type": "number",
+      "description": "当前库存数量",
+      "category": "inventory"
+    },
+    "库存预警": {
+      "english": "stock_warning",
+      "data_type": "string",
+      "description": "库存预警状态",
+      "category": "inventory"
+    },
+    "库存报警": {
+      "english": "stock_alert",
+      "data_type": "string",
+      "description": "库存报警状态",
+      "category": "inventory"
+    },
+    "库存": {
+      "english": "stock_quantity",
+      "data_type": "number",
+      "description": "当前库存数量",
+      "category": "inventory"
+    }
+  },
+  "table_schemas": {
+    "suppliers": {
+      "chinese_name": "供应商信息表",
+      "english_name": "suppliers",
+      "description": "供应商基础信息表",
+      "fields": [
+        "供应商名称",
+        "统一社会信用代码",
+        "单位地址",
+        "联系人",
+        "职务",
+        "联系电话",
+        "备注信息"
+      ],
+      "indexes": [
+        { "keys": ["supplier_name"], "unique": true },
+        { "keys": ["credit_code"], "unique": false }
+      ]
+    },
+    "customers": {
+      "chinese_name": "客户信息表",
+      "english_name": "customers",
+      "description": "客户基础信息表",
+      "fields": [
+        "客户名称",
+        "统一社会信用代码",
+        "法人",
+        "单位地址",
+        "联系人",
+        "职务",
+        "联系电话",
+        "合作产品",
+        "备注信息"
+      ],
+      "indexes": [
+        { "keys": ["customer_name"], "unique": true },
+        { "keys": ["credit_code"], "unique": false }
+      ]
+    },
+    "purchase_params": {
+      "chinese_name": "进货参数表",
+      "english_name": "purchase_params",
+      "description": "进货物料参数配置表",
+      "fields": [
+        "进货物料编码",
+        "进货物料名称",
+        "进货规格型号",
+        "单位",
+        "期初数量",
+        "安全库存",
+        "供应商名称",
+        "参数说明",
+        "经办人",
+        "备注信息"
+      ],
+      "indexes": [
+        { "keys": ["material_code"], "unique": true },
+        { "keys": ["material_name"], "unique": false },
+        { "keys": ["supplier_name"], "unique": false }
+      ]
+    },
+    "purchase_inbound": {
+      "chinese_name": "进货入库明细表",
+      "english_name": "purchase_inbound",
+      "description": "进货入库业务明细表",
+      "fields": [
+        "单号",
+        "入库日期",
+        "进货物料编码",
+        "进货物料名称",
+        "进货规格型号",
+        "单位",
+        "数量",
+        "进货单价",
+        "金额",
+        "经办人",
+        "供应商名称",
+        "开票日期",
+        "备注"
+      ],
+      "indexes": [
+        { "keys": ["order_number", "material_code"], "unique": true },
+        { "keys": ["inbound_date"], "unique": false },
+        { "keys": ["supplier_name"], "unique": false }
+      ]
+    },
+    "sales_outbound": {
+      "chinese_name": "销售出库明细表",
+      "english_name": "sales_outbound",
+      "description": "销售出库业务明细表",
+      "fields": [
+        "单号",
+        "出库日期",
+        "进货物料编码",
+        "进货物料名称",
+        "进货规格型号",
+        "单位",
+        "数量",
+        "出库单价",
+        "出库金额",
+        "经办人",
+        "客户",
+        "进货单价",
+        "进货金额",
+        "销售产品名称",
+        "销售产品型号",
+        "商城单号",
+        "开票日期",
+        "备注"
+      ],
+      "indexes": [
+        { "keys": ["order_number", "material_code"], "unique": true },
+        { "keys": ["outbound_date"], "unique": false },
+        { "keys": ["customer_name"], "unique": false }
+      ]
+    },
+    "payment_details": {
+      "chinese_name": "付款明细表",
+      "english_name": "payment_details",
+      "description": "付款业务明细表",
+      "fields": [
+        "付款日期",
+        "供应商名称",
+        "金额",
+        "付款方式",
+        "备注"
+      ],
+      "indexes": [
+        { "keys": ["payment_date"], "unique": false },
+        { "keys": ["supplier_name"], "unique": false }
+      ]
+    },
+    "receipt_details": {
+      "chinese_name": "收款明细表",
+      "english_name": "receipt_details",
+      "description": "收款业务明细表",
+      "fields": [
+        "收款日期",
+        "客户名称",
+        "金额",
+        "收款方式",
+        "备注"
+      ],
+      "indexes": [
+        { "keys": ["receipt_date"], "unique": false },
+        { "keys": ["customer_name"], "unique": false }
+      ]
+    },
+    "inventory_stats": {
+      "chinese_name": "库存统计表",
+      "english_name": "inventory_stats",
+      "description": "库存统计汇总表",
+      "fields": [
+        "进货物料编码",
+        "进货物料名称",
+        "进货规格型号",
+        "单位",
+        "期初数量",
+        "入库数量",
+        "入库金额",
+        "出库数量",
+        "出库金额",
+        "库存数量",
+        "安全库存",
+        "库存预警",
+        "备注"
+      ],
+      "indexes": [
+        { "keys": ["material_code"], "unique": true },
+        { "keys": ["material_name"], "unique": false }
+      ]
+    }
+  },
+  "naming_conventions": {
+    "rules": {
+      "case_style": "snake_case",
+      "language": "english",
+      "avoid_chinese": true,
+      "descriptive": true
+    },
+    "suffixes": {
+      "_name": "名称类字段",
+      "_code": "编码类字段",
+      "_date": "日期类字段",
+      "_amount": "金额类字段",
+      "_quantity": "数量类字段",
+      "_price": "价格类字段",
+      "_method": "方式类字段",
+      "_person": "人员类字段"
+    },
+    "prefixes": {
+      "purchase_": "进货相关",
+      "sales_": "销售相关",
+      "outbound_": "出库相关",
+      "inbound_": "入库相关"
+    }
+  },
+  "categories": {
+    "supplier": "供应商相关",
+    "customer": "客户相关",
+    "material": "物料相关",
+    "product": "产品相关",
+    "inventory": "库存相关",
+    "financial": "财务相关",
+    "price": "价格相关",
+    "date": "日期相关",
+    "contact": "联系方式相关",
+    "identification": "标识相关",
+    "measurement": "计量相关",
+    "personnel": "人员相关",
+    "business": "业务相关",
+    "description": "描述相关",
+    "general": "通用相关"
+  }
+}

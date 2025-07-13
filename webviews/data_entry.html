@@ -1,0 +1,1400 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据录入管理</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+
+        .tabs {
+            display: flex;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 15px 20px;
+            background: #f8f9fa;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            border-right: 1px solid #e9ecef;
+        }
+
+        .tab:last-child {
+            border-right: none;
+        }
+
+        .tab.active {
+            background: #007bff;
+            color: white;
+        }
+
+        .tab:hover:not(.active) {
+            background: #e9ecef;
+        }
+
+        .tab-content {
+            display: none;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 30px;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .form-section {
+            margin-bottom: 30px;
+        }
+
+        .form-section h3 {
+            color: #495057;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e9ecef;
+            font-size: 20px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #495057;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .required {
+            color: #dc3545;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #0056b3;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #545b62;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #1e7e34;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .data-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .data-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .status-message {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .search-box {
+            margin-bottom: 20px;
+        }
+
+        .search-box input {
+            width: 100%;
+            max-width: 400px;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 20px;
+            gap: 10px;
+        }
+
+        .pagination button {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            background: white;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .pagination button:hover:not(:disabled) {
+            background: #f8f9fa;
+        }
+
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .pagination button.active {
+            background: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+
+        .pagination-info {
+            font-size: 14px;
+            color: #666;
+            margin: 0 15px;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 5px;
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            color: #495057;
+        }
+
+        .close {
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            color: #aaa;
+        }
+
+        .close:hover {
+            color: #000;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+
+            .tabs {
+                flex-direction: column;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .data-table {
+                font-size: 12px;
+            }
+
+            .modal-content {
+                width: 95%;
+                margin: 2% auto;
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>数据录入管理系统</h1>
+            <p>供应商、客户、商品信息的录入、编辑和管理</p>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('suppliers')">供应商管理</button>
+            <button class="tab" onclick="showTab('customers')">客户管理</button>
+            <button class="tab" onclick="showTab('products')">商品管理</button>
+        </div>
+
+        <!-- 供应商管理 -->
+        <div id="suppliers" class="tab-content active">
+            <div class="form-section">
+                <h3>新增供应商</h3>
+                <form id="supplierForm">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="supplier_name">供应商名称 <span class="required">*</span></label>
+                            <input type="text" id="supplier_name" name="supplier_name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="supplier_code">供应商编码</label>
+                            <input type="text" id="supplier_code" name="supplier_code" placeholder="系统自动生成">
+                        </div>
+                        <div class="form-group">
+                            <label for="credit_code">统一社会信用代码</label>
+                            <input type="text" id="credit_code" name="credit_code">
+                        </div>
+                        <div class="form-group">
+                            <label for="contact_person">联系人</label>
+                            <input type="text" id="contact_person" name="contact_person">
+                        </div>
+                        <div class="form-group">
+                            <label for="phone">联系电话</label>
+                            <input type="tel" id="phone" name="phone">
+                        </div>
+                        <div class="form-group">
+                            <label for="email">邮箱</label>
+                            <input type="email" id="email" name="email">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="address">地址</label>
+                        <textarea id="address" name="address" rows="3"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="remarks">备注</label>
+                        <textarea id="remarks" name="remarks" rows="3"></textarea>
+                    </div>
+                    <div>
+                        <button type="submit" class="btn btn-primary">保存供应商</button>
+                        <button type="button" class="btn btn-secondary" onclick="resetForm('supplierForm')">重置</button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="form-section">
+                <h3>供应商列表</h3>
+                <div class="search-box">
+                    <input type="text" id="supplierSearch" placeholder="搜索供应商名称、编码或联系人..." onkeyup="filterSuppliers()">
+                </div>
+                <div class="loading" id="suppliersLoading">正在加载供应商数据...</div>
+                <table class="data-table" id="suppliersTable">
+                    <thead>
+                        <tr>
+                            <th>编码</th>
+                            <th>名称</th>
+                            <th>联系人</th>
+                            <th>电话</th>
+                            <th>状态</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="suppliersTableBody">
+                        <!-- 数据将通过JavaScript动态加载 -->
+                    </tbody>
+                </table>
+                <div class="pagination" id="suppliersPagination">
+                    <button onclick="changePage('suppliers', 'first')" id="suppliersFirstBtn">首页</button>
+                    <button onclick="changePage('suppliers', 'prev')" id="suppliersPrevBtn">上一页</button>
+                    <div class="pagination-info" id="suppliersPaginationInfo">第 1 页，共 1 页</div>
+                    <button onclick="changePage('suppliers', 'next')" id="suppliersNextBtn">下一页</button>
+                    <button onclick="changePage('suppliers', 'last')" id="suppliersLastBtn">末页</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 客户管理 -->
+        <div id="customers" class="tab-content">
+            <div class="form-section">
+                <h3>新增客户</h3>
+                <form id="customerForm">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="customer_name">客户名称 <span class="required">*</span></label>
+                            <input type="text" id="customer_name" name="customer_name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="customer_code">客户编码</label>
+                            <input type="text" id="customer_code" name="customer_code" placeholder="系统自动生成">
+                        </div>
+                        <div class="form-group">
+                            <label for="customer_type">客户类型</label>
+                            <select id="customer_type" name="customer_type">
+                                <option value="">请选择</option>
+                                <option value="企业客户">企业客户</option>
+                                <option value="个人客户">个人客户</option>
+                                <option value="政府机构">政府机构</option>
+                                <option value="其他">其他</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="customer_credit_code">统一社会信用代码</label>
+                            <input type="text" id="customer_credit_code" name="customer_credit_code">
+                        </div>
+                        <div class="form-group">
+                            <label for="customer_contact_person">联系人</label>
+                            <input type="text" id="customer_contact_person" name="customer_contact_person">
+                        </div>
+                        <div class="form-group">
+                            <label for="customer_phone">联系电话</label>
+                            <input type="tel" id="customer_phone" name="customer_phone">
+                        </div>
+                        <div class="form-group">
+                            <label for="customer_email">邮箱</label>
+                            <input type="email" id="customer_email" name="customer_email">
+                        </div>
+                        <div class="form-group">
+                            <label for="credit_limit">信用额度</label>
+                            <input type="number" id="credit_limit" name="credit_limit" step="0.01" min="0">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="customer_address">地址</label>
+                        <textarea id="customer_address" name="customer_address" rows="3"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="customer_remarks">备注</label>
+                        <textarea id="customer_remarks" name="customer_remarks" rows="3"></textarea>
+                    </div>
+                    <div>
+                        <button type="submit" class="btn btn-primary">保存客户</button>
+                        <button type="button" class="btn btn-secondary" onclick="resetForm('customerForm')">重置</button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="form-section">
+                <h3>客户列表</h3>
+                <div class="search-box">
+                    <input type="text" id="customerSearch" placeholder="搜索客户名称、编码或联系人..." onkeyup="filterCustomers()">
+                </div>
+                <div class="loading" id="customersLoading">正在加载客户数据...</div>
+                <table class="data-table" id="customersTable">
+                    <thead>
+                        <tr>
+                            <th>编码</th>
+                            <th>名称</th>
+                            <th>类型</th>
+                            <th>联系人</th>
+                            <th>电话</th>
+                            <th>信用额度</th>
+                            <th>状态</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="customersTableBody">
+                        <!-- 数据将通过JavaScript动态加载 -->
+                    </tbody>
+                </table>
+                <div class="pagination" id="customersPagination">
+                    <button onclick="changePage('customers', 'first')" id="customersFirstBtn">首页</button>
+                    <button onclick="changePage('customers', 'prev')" id="customersPrevBtn">上一页</button>
+                    <div class="pagination-info" id="customersPaginationInfo">第 1 页，共 1 页</div>
+                    <button onclick="changePage('customers', 'next')" id="customersNextBtn">下一页</button>
+                    <button onclick="changePage('customers', 'last')" id="customersLastBtn">末页</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 商品管理 -->
+        <div id="products" class="tab-content">
+            <div class="form-section">
+                <h3>新增商品</h3>
+                <form id="productForm">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="product_name">商品名称 <span class="required">*</span></label>
+                            <input type="text" id="product_name" name="product_name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="product_code">商品编码</label>
+                            <input type="text" id="product_code" name="product_code" placeholder="系统自动生成">
+                        </div>
+                        <div class="form-group">
+                            <label for="product_category">商品分类</label>
+                            <select id="product_category" name="product_category">
+                                <option value="">请选择</option>
+                                <option value="硬件设备">硬件设备</option>
+                                <option value="软件产品">软件产品</option>
+                                <option value="服务项目">服务项目</option>
+                                <option value="配件耗材">配件耗材</option>
+                                <option value="其他">其他</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="product_model">规格型号</label>
+                            <input type="text" id="product_model" name="product_model">
+                        </div>
+                        <div class="form-group">
+                            <label for="product_unit">计量单位</label>
+                            <select id="product_unit" name="product_unit">
+                                <option value="">请选择</option>
+                                <option value="台">台</option>
+                                <option value="套">套</option>
+                                <option value="个">个</option>
+                                <option value="件">件</option>
+                                <option value="批">批</option>
+                                <option value="项">项</option>
+                                <option value="其他">其他</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="product_price">单价</label>
+                            <input type="number" id="product_price" name="product_price" step="0.01" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="product_cost">成本价</label>
+                            <input type="number" id="product_cost" name="product_cost" step="0.01" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="stock_quantity">库存数量</label>
+                            <input type="number" id="stock_quantity" name="stock_quantity" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="min_stock">最低库存</label>
+                            <input type="number" id="min_stock" name="min_stock" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="max_stock">最高库存</label>
+                            <input type="number" id="max_stock" name="max_stock" min="0">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="product_description">商品描述</label>
+                        <textarea id="product_description" name="product_description" rows="3"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="product_remarks">备注</label>
+                        <textarea id="product_remarks" name="product_remarks" rows="3"></textarea>
+                    </div>
+                    <div>
+                        <button type="submit" class="btn btn-primary">保存商品</button>
+                        <button type="button" class="btn btn-secondary" onclick="resetForm('productForm')">重置</button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="form-section">
+                <h3>商品列表</h3>
+                <div class="search-box">
+                    <input type="text" id="productSearch" placeholder="搜索商品名称、编码或分类..." onkeyup="filterProducts()">
+                </div>
+                <div class="loading" id="productsLoading">正在加载商品数据...</div>
+                <table class="data-table" id="productsTable">
+                    <thead>
+                        <tr>
+                            <th>编码</th>
+                            <th>名称</th>
+                            <th>分类</th>
+                            <th>规格型号</th>
+                            <th>单位</th>
+                            <th>单价</th>
+                            <th>库存</th>
+                            <th>状态</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="productsTableBody">
+                        <!-- 数据将通过JavaScript动态加载 -->
+                    </tbody>
+                </table>
+                <div class="pagination" id="productsPagination">
+                    <button onclick="changePage('products', 'first')" id="productsFirstBtn">首页</button>
+                    <button onclick="changePage('products', 'prev')" id="productsPrevBtn">上一页</button>
+                    <div class="pagination-info" id="productsPaginationInfo">第 1 页，共 1 页</div>
+                    <button onclick="changePage('products', 'next')" id="productsNextBtn">下一页</button>
+                    <button onclick="changePage('products', 'last')" id="productsLastBtn">末页</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 编辑模态框 -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">编辑信息</h3>
+                <span class="close" onclick="closeModal()">&times;</span>
+            </div>
+            <div id="modalBody">
+                <!-- 编辑表单将动态加载到这里 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 状态消息 -->
+    <div id="statusMessage" class="status-message" style="display: none;"></div>
+
+    <script>
+        // 全局变量
+        let suppliers = [];
+        let customers = [];
+        let products = [];
+        let currentEditType = '';
+        let currentEditId = '';
+
+        // 分页相关变量
+        const pageSize = 10; // 每页显示的记录数
+        let currentPages = {
+            suppliers: 1,
+            customers: 1,
+            products: 1
+        };
+        let totalPages = {
+            suppliers: 1,
+            customers: 1,
+            products: 1
+        };
+        let filteredData = {
+            suppliers: [],
+            customers: [],
+            products: []
+        };
+
+        // VS Code API
+        const vscode = acquireVsCodeApi();
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            setupFormSubmissions();
+            loadAllData();
+        });
+
+        // 显示标签页
+        function showTab(tabName) {
+            // 隐藏所有标签页内容
+            const tabContents = document.querySelectorAll('.tab-content');
+            tabContents.forEach(content => content.classList.remove('active'));
+
+            // 移除所有标签的active类
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach(tab => tab.classList.remove('active'));
+
+            // 显示选中的标签页内容
+            document.getElementById(tabName).classList.add('active');
+
+            // 添加active类到选中的标签
+            event.target.classList.add('active');
+
+            // 根据标签页加载相应数据
+            if (tabName === 'suppliers' && suppliers.length === 0) {
+                loadSuppliers();
+            } else if (tabName === 'customers' && customers.length === 0) {
+                loadCustomers();
+            } else if (tabName === 'products' && products.length === 0) {
+                loadProducts();
+            }
+        }
+
+        // 设置表单提交事件
+        function setupFormSubmissions() {
+            // 供应商表单
+            document.getElementById('supplierForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                saveSupplier();
+            });
+
+            // 客户表单
+            document.getElementById('customerForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                saveCustomer();
+            });
+
+            // 商品表单
+            document.getElementById('productForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                saveProduct();
+            });
+        }
+
+        // 加载所有数据
+        function loadAllData() {
+            loadSuppliers();
+        }
+
+        // 加载供应商数据
+        function loadSuppliers() {
+            showLoading('suppliersLoading');
+            vscode.postMessage({
+                command: 'loadSuppliers'
+            });
+        }
+
+        // 加载客户数据
+        function loadCustomers() {
+            showLoading('customersLoading');
+            vscode.postMessage({
+                command: 'loadCustomers'
+            });
+        }
+
+        // 加载商品数据
+        function loadProducts() {
+            showLoading('productsLoading');
+            vscode.postMessage({
+                command: 'loadProducts'
+            });
+        }
+
+        // 保存供应商
+        function saveSupplier() {
+            const form = document.getElementById('supplierForm');
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData.entries());
+
+            vscode.postMessage({
+                command: 'saveSupplier',
+                data: data
+            });
+        }
+
+        // 保存客户
+        function saveCustomer() {
+            const form = document.getElementById('customerForm');
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData.entries());
+
+            vscode.postMessage({
+                command: 'saveCustomer',
+                data: data
+            });
+        }
+
+        // 保存商品
+        function saveProduct() {
+            const form = document.getElementById('productForm');
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData.entries());
+
+            vscode.postMessage({
+                command: 'saveProduct',
+                data: data
+            });
+        }
+
+        // 编辑记录
+        function editRecord(type, id) {
+            currentEditType = type;
+            currentEditId = id;
+
+            let record;
+            if (type === 'supplier') {
+                record = suppliers.find(s => s._id === id);
+                showEditModal('编辑供应商', createSupplierEditForm(record));
+            } else if (type === 'customer') {
+                record = customers.find(c => c._id === id);
+                showEditModal('编辑客户', createCustomerEditForm(record));
+            } else if (type === 'product') {
+                record = products.find(p => p._id === id);
+                showEditModal('编辑商品', createProductEditForm(record));
+            }
+        }
+
+        // 删除记录
+        function deleteRecord(type, id) {
+            if (confirm('确定要删除这条记录吗？此操作不可恢复。')) {
+                vscode.postMessage({
+                    command: 'deleteRecord',
+                    data: {
+                        type: type,
+                        id: id
+                    }
+                });
+            }
+        }
+
+        // 显示编辑模态框
+        function showEditModal(title, content) {
+            document.getElementById('modalTitle').textContent = title;
+            document.getElementById('modalBody').innerHTML = content;
+            document.getElementById('editModal').style.display = 'block';
+        }
+
+        // 关闭模态框
+        function closeModal() {
+            document.getElementById('editModal').style.display = 'none';
+        }
+
+        // 保存编辑
+        function saveEdit() {
+            const form = document.getElementById('editForm');
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData.entries());
+            data._id = currentEditId;
+
+            vscode.postMessage({
+                command: 'updateRecord',
+                type: currentEditType,
+                data: data
+            });
+        }
+
+        // 创建供应商编辑表单
+        function createSupplierEditForm(supplier) {
+            return `
+                <form id="editForm">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>供应商名称 <span class="required">*</span></label>
+                            <input type="text" name="supplier_name" value="${supplier.supplier_name || ''}" required>
+                        </div>
+                        <div class="form-group">
+                            <label>供应商编码</label>
+                            <input type="text" name="supplier_code" value="${supplier.supplier_code || ''}">
+                        </div>
+                        <div class="form-group">
+                            <label>统一社会信用代码</label>
+                            <input type="text" name="credit_code" value="${supplier.credit_code || ''}">
+                        </div>
+                        <div class="form-group">
+                            <label>联系人</label>
+                            <input type="text" name="contact_person" value="${supplier.contact_person || ''}">
+                        </div>
+                        <div class="form-group">
+                            <label>联系电话</label>
+                            <input type="tel" name="phone" value="${supplier.phone || ''}">
+                        </div>
+                        <div class="form-group">
+                            <label>邮箱</label>
+                            <input type="email" name="email" value="${supplier.email || ''}">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>地址</label>
+                        <textarea name="address" rows="3">${supplier.address || ''}</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>备注</label>
+                        <textarea name="remarks" rows="3">${supplier.remarks || ''}</textarea>
+                    </div>
+                    <div>
+                        <button type="button" class="btn btn-primary" onclick="saveEdit()">保存</button>
+                        <button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button>
+                    </div>
+                </form>
+            `;
+        }
+
+        // 创建客户编辑表单
+        function createCustomerEditForm(customer) {
+            return `
+                <form id="editForm">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>客户名称 <span class="required">*</span></label>
+                            <input type="text" name="customer_name" value="${customer.customer_name || ''}" required>
+                        </div>
+                        <div class="form-group">
+                            <label>客户编码</label>
+                            <input type="text" name="customer_code" value="${customer.customer_code || ''}">
+                        </div>
+                        <div class="form-group">
+                            <label>客户类型</label>
+                            <select name="customer_type">
+                                <option value="">请选择</option>
+                                <option value="企业客户" ${customer.customer_type === '企业客户' ? 'selected' : ''}>企业客户</option>
+                                <option value="个人客户" ${customer.customer_type === '个人客户' ? 'selected' : ''}>个人客户</option>
+                                <option value="政府机构" ${customer.customer_type === '政府机构' ? 'selected' : ''}>政府机构</option>
+                                <option value="其他" ${customer.customer_type === '其他' ? 'selected' : ''}>其他</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>统一社会信用代码</label>
+                            <input type="text" name="customer_credit_code" value="${customer.customer_credit_code || ''}">
+                        </div>
+                        <div class="form-group">
+                            <label>联系人</label>
+                            <input type="text" name="customer_contact_person" value="${customer.customer_contact_person || ''}">
+                        </div>
+                        <div class="form-group">
+                            <label>联系电话</label>
+                            <input type="tel" name="customer_phone" value="${customer.customer_phone || ''}">
+                        </div>
+                        <div class="form-group">
+                            <label>邮箱</label>
+                            <input type="email" name="customer_email" value="${customer.customer_email || ''}">
+                        </div>
+                        <div class="form-group">
+                            <label>信用额度</label>
+                            <input type="number" name="credit_limit" value="${customer.credit_limit || ''}" step="0.01" min="0">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>地址</label>
+                        <textarea name="customer_address" rows="3">${customer.customer_address || ''}</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>备注</label>
+                        <textarea name="customer_remarks" rows="3">${customer.customer_remarks || ''}</textarea>
+                    </div>
+                    <div>
+                        <button type="button" class="btn btn-primary" onclick="saveEdit()">保存</button>
+                        <button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button>
+                    </div>
+                </form>
+            `;
+        }
+
+        // 创建商品编辑表单
+        function createProductEditForm(product) {
+            return `
+                <form id="editForm">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>商品名称 <span class="required">*</span></label>
+                            <input type="text" name="product_name" value="${product.product_name || ''}" required>
+                        </div>
+                        <div class="form-group">
+                            <label>商品编码</label>
+                            <input type="text" name="product_code" value="${product.product_code || ''}">
+                        </div>
+                        <div class="form-group">
+                            <label>商品分类</label>
+                            <select name="product_category">
+                                <option value="">请选择</option>
+                                <option value="硬件设备" ${product.product_category === '硬件设备' ? 'selected' : ''}>硬件设备</option>
+                                <option value="软件产品" ${product.product_category === '软件产品' ? 'selected' : ''}>软件产品</option>
+                                <option value="服务项目" ${product.product_category === '服务项目' ? 'selected' : ''}>服务项目</option>
+                                <option value="配件耗材" ${product.product_category === '配件耗材' ? 'selected' : ''}>配件耗材</option>
+                                <option value="其他" ${product.product_category === '其他' ? 'selected' : ''}>其他</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>规格型号</label>
+                            <input type="text" name="product_model" value="${product.product_model || ''}">
+                        </div>
+                        <div class="form-group">
+                            <label>计量单位</label>
+                            <select name="product_unit">
+                                <option value="">请选择</option>
+                                <option value="台" ${product.product_unit === '台' ? 'selected' : ''}>台</option>
+                                <option value="套" ${product.product_unit === '套' ? 'selected' : ''}>套</option>
+                                <option value="个" ${product.product_unit === '个' ? 'selected' : ''}>个</option>
+                                <option value="件" ${product.product_unit === '件' ? 'selected' : ''}>件</option>
+                                <option value="批" ${product.product_unit === '批' ? 'selected' : ''}>批</option>
+                                <option value="项" ${product.product_unit === '项' ? 'selected' : ''}>项</option>
+                                <option value="其他" ${product.product_unit === '其他' ? 'selected' : ''}>其他</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>单价</label>
+                            <input type="number" name="product_price" value="${product.product_price || ''}" step="0.01" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label>成本价</label>
+                            <input type="number" name="product_cost" value="${product.product_cost || ''}" step="0.01" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label>库存数量</label>
+                            <input type="number" name="stock_quantity" value="${product.stock_quantity || ''}" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label>最低库存</label>
+                            <input type="number" name="min_stock" value="${product.min_stock || ''}" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label>最高库存</label>
+                            <input type="number" name="max_stock" value="${product.max_stock || ''}" min="0">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>商品描述</label>
+                        <textarea name="product_description" rows="3">${product.product_description || ''}</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>备注</label>
+                        <textarea name="product_remarks" rows="3">${product.product_remarks || ''}</textarea>
+                    </div>
+                    <div>
+                        <button type="button" class="btn btn-primary" onclick="saveEdit()">保存</button>
+                        <button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button>
+                    </div>
+                </form>
+            `;
+        }
+
+        // 重置表单
+        function resetForm(formId) {
+            document.getElementById(formId).reset();
+        }
+
+        // 显示加载状态
+        function showLoading(elementId) {
+            document.getElementById(elementId).classList.add('show');
+        }
+
+        // 隐藏加载状态
+        function hideLoading(elementId) {
+            document.getElementById(elementId).classList.remove('show');
+        }
+
+        // 显示状态消息
+        function showStatus(message, type = 'info') {
+            const statusElement = document.getElementById('statusMessage');
+            statusElement.textContent = message;
+            statusElement.className = `status-message status-${type}`;
+            statusElement.style.display = 'block';
+
+            // 3秒后自动隐藏
+            setTimeout(() => {
+                statusElement.style.display = 'none';
+            }, 3000);
+        }
+
+        // 更新供应商表格
+        function updateSuppliersTable() {
+            initializePagination('suppliers', suppliers);
+            hideLoading('suppliersLoading');
+        }
+
+        // 更新客户表格
+        function updateCustomersTable() {
+            initializePagination('customers', customers);
+            hideLoading('customersLoading');
+        }
+
+        // 更新商品表格
+        function updateProductsTable() {
+            initializePagination('products', products);
+            hideLoading('productsLoading');
+        }
+
+        // 过滤供应商
+        function filterSuppliers() {
+            const searchTerm = document.getElementById('supplierSearch').value.toLowerCase();
+            
+            if (searchTerm === '') {
+                // 如果搜索框为空，显示所有数据
+                initializePagination('suppliers', suppliers);
+            } else {
+                // 过滤数据
+                const filtered = suppliers.filter(supplier => {
+                    const searchText = `${supplier.supplier_name || ''} ${supplier.supplier_code || ''} ${supplier.contact_person || ''}`.toLowerCase();
+                    return searchText.includes(searchTerm);
+                });
+                initializePagination('suppliers', filtered);
+            }
+        }
+
+        // 过滤客户
+        function filterCustomers() {
+            const searchTerm = document.getElementById('customerSearch').value.toLowerCase();
+            
+            if (searchTerm === '') {
+                // 如果搜索框为空，显示所有数据
+                initializePagination('customers', customers);
+            } else {
+                // 过滤数据
+                const filtered = customers.filter(customer => {
+                    const searchText = `${customer.customer_name || ''} ${customer.customer_code || ''} ${customer.customer_contact_person || ''}`.toLowerCase();
+                    return searchText.includes(searchTerm);
+                });
+                initializePagination('customers', filtered);
+            }
+        }
+
+        // 过滤商品
+        function filterProducts() {
+            const searchTerm = document.getElementById('productSearch').value.toLowerCase();
+            
+            if (searchTerm === '') {
+                // 如果搜索框为空，显示所有数据
+                initializePagination('products', products);
+            } else {
+                // 过滤数据
+                const filtered = products.filter(product => {
+                    const searchText = `${product.product_name || ''} ${product.product_code || ''} ${product.product_category || ''}`.toLowerCase();
+                    return searchText.includes(searchTerm);
+                });
+                initializePagination('products', filtered);
+            }
+        }
+
+        // 监听来自VS Code的消息
+        window.addEventListener('message', event => {
+            const message = event.data;
+
+            switch (message.command) {
+                case 'suppliersLoaded':
+                    suppliers = message.data || [];
+                    updateSuppliersTable();
+                    break;
+
+                case 'customersLoaded':
+                    customers = message.data || [];
+                    updateCustomersTable();
+                    break;
+
+                case 'productsLoaded':
+                    products = message.data || [];
+                    updateProductsTable();
+                    break;
+
+                case 'recordSaved':
+                    showStatus(message.message, 'success');
+                    // 重新加载相应的数据
+                    if (message.type === 'supplier') {
+                        loadSuppliers();
+                        resetForm('supplierForm');
+                    } else if (message.type === 'customer') {
+                        loadCustomers();
+                        resetForm('customerForm');
+                    } else if (message.type === 'product') {
+                        loadProducts();
+                        resetForm('productForm');
+                    }
+                    break;
+
+                case 'recordUpdated':
+                    showStatus(message.message, 'success');
+                    closeModal();
+                    // 重新加载相应的数据
+                    if (message.type === 'supplier') {
+                        loadSuppliers();
+                    } else if (message.type === 'customer') {
+                        loadCustomers();
+                    } else if (message.type === 'product') {
+                        loadProducts();
+                    }
+                    break;
+
+                case 'recordDeleted':
+                    showStatus(message.message, 'success');
+                    // 重新加载相应的数据
+                    if (message.type === 'supplier') {
+                        loadSuppliers();
+                    } else if (message.type === 'customer') {
+                        loadCustomers();
+                    } else if (message.type === 'product') {
+                        loadProducts();
+                    }
+                    break;
+
+                case 'error':
+                    showStatus(message.message, 'error');
+                    hideLoading('suppliersLoading');
+                    hideLoading('customersLoading');
+                    hideLoading('productsLoading');
+                    break;
+            }
+        });
+
+        // 分页相关函数
+        function changePage(type, action) {
+            const currentPage = currentPages[type];
+            const totalPage = totalPages[type];
+            
+            let newPage = currentPage;
+            
+            switch (action) {
+                case 'first':
+                    newPage = 1;
+                    break;
+                case 'prev':
+                    newPage = Math.max(1, currentPage - 1);
+                    break;
+                case 'next':
+                    newPage = Math.min(totalPage, currentPage + 1);
+                    break;
+                case 'last':
+                    newPage = totalPage;
+                    break;
+            }
+            
+            if (newPage !== currentPage) {
+                currentPages[type] = newPage;
+                updateTableWithPagination(type);
+                updatePaginationInfo(type);
+            }
+        }
+        
+        function updateTableWithPagination(type) {
+            const data = filteredData[type];
+            const startIndex = (currentPages[type] - 1) * pageSize;
+            const endIndex = startIndex + pageSize;
+            const pageData = data.slice(startIndex, endIndex);
+            
+            if (type === 'suppliers') {
+                updateSuppliersTableWithData(pageData);
+            } else if (type === 'customers') {
+                updateCustomersTableWithData(pageData);
+            } else if (type === 'products') {
+                updateProductsTableWithData(pageData);
+            }
+        }
+        
+        function updatePaginationInfo(type) {
+            const infoElement = document.getElementById(`${type}PaginationInfo`);
+            const firstBtn = document.getElementById(`${type}FirstBtn`);
+            const prevBtn = document.getElementById(`${type}PrevBtn`);
+            const nextBtn = document.getElementById(`${type}NextBtn`);
+            const lastBtn = document.getElementById(`${type}LastBtn`);
+            
+            const currentPage = currentPages[type];
+            const totalPage = totalPages[type];
+            
+            infoElement.textContent = `第 ${currentPage} 页，共 ${totalPage} 页`;
+            
+            firstBtn.disabled = currentPage === 1;
+            prevBtn.disabled = currentPage === 1;
+            nextBtn.disabled = currentPage === totalPage;
+            lastBtn.disabled = currentPage === totalPage;
+        }
+        
+        function initializePagination(type, data) {
+            filteredData[type] = data;
+            totalPages[type] = Math.ceil(data.length / pageSize);
+            currentPages[type] = 1;
+            updateTableWithPagination(type);
+            updatePaginationInfo(type);
+        }
+        
+        function updateSuppliersTableWithData(data) {
+            const tbody = document.getElementById('suppliersTableBody');
+            tbody.innerHTML = '';
+            data.forEach(supplier => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${supplier.supplier_code || ''}</td>
+                    <td>${supplier.supplier_name || ''}</td>
+                    <td>${supplier.contact_person || ''}</td>
+                    <td>${supplier.phone || ''}</td>
+                    <td><span class="badge badge-success">${supplier.status || 'active'}</span></td>
+                    <td class="action-buttons">
+                        <button class="btn btn-sm btn-primary" onclick="editRecord('supplier', '${supplier._id}')">编辑</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteRecord('supplier', '${supplier._id}')">删除</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+        function updateCustomersTableWithData(data) {
+            const tbody = document.getElementById('customersTableBody');
+            tbody.innerHTML = '';
+            data.forEach(customer => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${customer.customer_code || ''}</td>
+                    <td>${customer.customer_name || ''}</td>
+                    <td>${customer.customer_type || ''}</td>
+                    <td>${customer.customer_contact_person || ''}</td>
+                    <td>${customer.customer_phone || ''}</td>
+                    <td>${customer.credit_limit || ''}</td>
+                    <td><span class="badge badge-success">${customer.status || 'active'}</span></td>
+                    <td class="action-buttons">
+                        <button class="btn btn-sm btn-primary" onclick="editRecord('customer', '${customer._id}')">编辑</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteRecord('customer', '${customer._id}')">删除</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+        function updateProductsTableWithData(data) {
+            const tbody = document.getElementById('productsTableBody');
+            tbody.innerHTML = '';
+            data.forEach(product => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${product.product_code || ''}</td>
+                    <td>${product.product_name || ''}</td>
+                    <td>${product.product_category || ''}</td>
+                    <td>${product.product_model || ''}</td>
+                    <td>${product.product_unit || ''}</td>
+                    <td>${product.product_price || ''}</td>
+                    <td>${product.stock_quantity || ''}</td>
+                    <td><span class="badge badge-success">${product.status || 'active'}</span></td>
+                    <td class="action-buttons">
+                        <button class="btn btn-sm btn-primary" onclick="editRecord('product', '${product._id}')">编辑</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteRecord('product', '${product._id}')">删除</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // 点击模态框外部关闭
+        window.onclick = function(event) {
+            const modal = document.getElementById('editModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        }
+    </script>
+</body>
+</html>
