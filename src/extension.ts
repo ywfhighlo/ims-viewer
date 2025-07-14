@@ -505,6 +505,9 @@ function runDatabaseTest(context: vscode.ExtensionContext) {
 }
 
 function showTableDataPanel(context: vscode.ExtensionContext, tableName: string, chineseName: string) {
+    // 在创建面板之前，先设置好数据库连接环境变量
+    setDatabaseConfigEnv();
+
     const panel = vscode.window.createWebviewPanel(
         'imsTableData',
         `${chineseName} (${tableName})`,
