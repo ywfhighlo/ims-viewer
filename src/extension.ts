@@ -59,7 +59,7 @@ function getDatabaseName(excelFilePath?: string): string {
 }
 
 // 设置数据库配置到环境变量
-function setDatabaseConfigEnv(excelFilePath?: string) {
+export function setDatabaseConfigEnv(excelFilePath?: string) {
     const config = vscode.workspace.getConfiguration('imsViewer');
     
     // 设置数据库名称

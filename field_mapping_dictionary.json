@@ -290,6 +290,21 @@
     }
   },
   "table_schemas": {
+    "materials": {
+      "chinese_name": "物料信息表",
+      "english_name": "materials",
+      "description": "存储所有物料的基础信息和规格",
+      "fields": [
+        "进货物料编码",
+        "进货物料名称",
+        "进货规格型号",
+        "单位"
+      ],
+      "indexes": [
+        { "keys": ["material_code"], "unique": true },
+        { "keys": ["material_name"], "unique": false }
+      ]
+    },
     "suppliers": {
       "chinese_name": "供应商信息表",
       "english_name": "suppliers",

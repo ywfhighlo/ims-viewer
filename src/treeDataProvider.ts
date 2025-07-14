@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import { exec } from 'child_process';
+import { setDatabaseConfigEnv } from './extension';
 
 // 获取数据库名称
 function getDatabaseName(): string {
@@ -51,6 +52,7 @@ export class ImsTreeDataProvider implements vscode.TreeDataProvider<vscode.TreeI
                 console.warn('Field mapping dictionary file not found, using default mapping');
                 // 如果文件不存在，使用默认映射
                 this.tableMapping = {
+                    "materials": "物料信息表",
                     "suppliers": "供应商信息表",
                     "customers": "客户信息表",
                     "purchase_params": "进货参数表",
@@ -65,6 +67,7 @@ export class ImsTreeDataProvider implements vscode.TreeDataProvider<vscode.TreeI
             console.error('Error loading table mapping:', error);
             // 出错时使用默认映射
             this.tableMapping = {
+                "materials": "物料信息表",
                 "suppliers": "供应商信息表",
                 "customers": "客户信息表",
                 "purchase_params": "进货参数表",
@@ -78,20 +81,43 @@ export class ImsTreeDataProvider implements vscode.TreeDataProvider<vscode.TreeI
     }
 
     private async checkConnection(): Promise<void> {
-        // Simplified connection check - assume connected for now
-        // Real connection testing is done through Python scripts
-        this.isConnected = true;
-        this.collections = [
-            "suppliers",
-            "customers", 
-            "purchase_params",
-            "purchase_inbound",
-            "sales_outbound",
-            "payment_details",
-            "receipt_details",
-            "inventory_stats"
-        ];
-        this.refresh();
+        setDatabaseConfigEnv();
+
+        const pythonPath = "python"; // or a specific path to python executable
+        const scriptPath = path.join(this.context.extensionPath, 'scripts', 'get_collection_names.py');
+        const command = `${pythonPath} "${scriptPath}"`;
+
+        exec(command, { 
+            encoding: 'utf8',
+            env: { ...process.env, PYTHONIOENCODING: 'utf-8' }
+        }, (error, stdout, stderr) => {
+            if (error || stderr) {
+                vscode.window.showWarningMessage(`动态获取数据表列表失败，将加载默认列表: ${stderr || '未知错误'}`);
+                this.isConnected = true; // 即使动态获取失败，也认为连接是成功的，以便显示默认列表
+                this.loadDefaultCollections();
+            } else {
+                try {
+                    const result = JSON.parse(stdout);
+                    if (result.error) {
+                        vscode.window.showWarningMessage(`获取数据表列表时出错，将加载默认列表: ${result.error}`);
+                        this.isConnected = true;
+                        this.loadDefaultCollections();
+                    } else {
+                        this.isConnected = true;
+                        this.collections = result.collections || [];
+                    }
+                } catch (e) {
+                    vscode.window.showWarningMessage('解析数据表列表时出错，将加载默认列表。');
+                    this.isConnected = true;
+                    this.loadDefaultCollections();
+                }
+            }
+            this.refresh();
+        });
+    }
+
+    private loadDefaultCollections(): void {
+        this.collections = Object.keys(this.tableMapping);
     }
     
     async reconnect(): Promise<void> {
