@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-from vscode_config_reader import get_data_directory
 """
 客户信息表解析脚本
 使用统一的字段映射词典进行数据转换
@@ -11,6 +10,8 @@ import json
 import os
 from typing import Dict, List, Any
 from field_mapping_utils import field_mapper, translate_dict_to_english
+from vscode_config_reader import get_data_directory
+from data_filter import DataFilter
 
 def parse_customer_info(excel_file_path: str, sheet_name: str = "客户信息表") -> List[Dict[str, Any]]:
     """
@@ -31,7 +32,7 @@ def parse_customer_info(excel_file_path: str, sheet_name: str = "客户信息表
         # 使用统一词典翻译和验证
         field_mapping = field_mapper.create_mapping_for_excel(excel_headers, "customers")
         
-        # 保留所有字段，包括空值，但将NaN转换为None
+        # 转换数据
         customers_data = []
         for _, row in df.iterrows():
             row_dict = {}
@@ -46,7 +47,14 @@ def parse_customer_info(excel_file_path: str, sheet_name: str = "客户信息表
             english_row = translate_dict_to_english(row_dict)
             customers_data.append(english_row)
         
-        print(f"成功解析 {len(customers_data)} 条客户信息")
+        # 使用 DataFilter 过滤无效记录
+        customers_data, filtered_count = DataFilter.clean_and_filter_customer_data(customers_data)
+        
+        # 为客户按顺序分配编码
+        customers_data = DataFilter.assign_sequential_codes(customers_data, 'customer_code')
+        
+        # 打印过滤结果摘要
+        DataFilter.print_filter_summary(len(df), filtered_count, "客户记录")
         return customers_data
     except Exception as e:
         print(f"解析客户信息时出错: {str(e)}")
@@ -60,14 +68,22 @@ def save_customers_data(customers_data: List[Dict[str, Any]], output_file: str =
         if output_file is None:
             data_dir = get_data_directory()
             output_file = os.path.join(data_dir, "customers.json")
+        from datetime import datetime
+        
         output_data = {
             "metadata": {
                 "table_name": "customers",
+                "source": "excel_sheet",
+                "generated_at": datetime.now().isoformat(),
                 "table_chinese_name": "客户信息表",
                 "total_records": len(customers_data),
+                "last_updated": datetime.now().isoformat(),
+                "description": "客户信息表（已过滤空记录）",
+                "encoding_rule": "2位数字编码，01-98为具体客户，99为未指定客户",
                 "field_mapping": field_mapper.get_table_schema("customers"),
                 "generated_by": "parse2_customer_info.py",
-                "dictionary_version": field_mapper._dictionary.get("metadata", {}).get("version", "unknown")
+                "dictionary_version": field_mapper._dictionary.get("metadata", {}).get("version", "unknown"),
+                "data_filtering": "已过滤所有字段为空的记录"
             },
             "data": customers_data
         }

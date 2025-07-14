@@ -13,6 +13,7 @@ from typing import Dict, List, Any, Optional
 from field_mapping_utils import FieldMappingUtils
 from enhanced_date_parser import EnhancedDateParser
 from enhanced_logger import EnhancedLogger
+from data_filter import DataFilter
 # 新增导入
 from material_manager import get_db_client
 
@@ -168,6 +169,28 @@ def parse_purchase_inbound(excel_file_path: str,
                    success_rate=f"{(len(data)/len(df)*100):.1f}%" if len(df) > 0 else "0%",
                    is_success=True)
         
+        # 使用 DataFilter 过滤无效记录
+        original_count = len(data)
+        filtered_data, filtered_count = DataFilter.filter_empty_records(data)
+        
+        # 进一步过滤：要求至少有单号或物料编码
+        valid_data = []
+        for record in filtered_data:
+            order_number = record.get('order_number')
+            material_code = record.get('material_code')
+            if (DataFilter.is_valid_string(order_number) or 
+                DataFilter.is_valid_string(material_code)):
+                valid_data.append(record)
+        
+        additional_filtered = len(filtered_data) - len(valid_data)
+        total_filtered = filtered_count + additional_filtered
+        
+        # 打印过滤结果摘要
+        DataFilter.print_filter_summary(original_count, total_filtered, "进货入库记录")
+        
+        # 更新数据为过滤后的数据
+        data = valid_data
+        
         # 6. 日期字段处理
         if data:
             date_parser = EnhancedDateParser()
@@ -247,13 +270,20 @@ def save_purchase_inbound_data(purchase_inbound_data: List[Dict[str, Any]], outp
         if output_file is None:
             data_dir = get_data_directory()
             output_file = os.path.join(data_dir, "purchase_inbound.json")
+        from datetime import datetime
+        
         # 添加元数据
         output_data = {
             "metadata": {
                 "table_name": "purchase_inbound",
                 "table_chinese_name": "进货入库明细表",
                 "total_records": len(purchase_inbound_data),
-                "generated_by": "parse4_purchase_inbound.py"
+                "generated_by": "parse4_purchase_inbound.py",
+                "source": "imsviewer.xlsx - 进货入库明细表",
+                "generated_at": datetime.now().isoformat(),
+                "last_updated": datetime.now().isoformat(),
+                "description": "进货入库明细表数据，包含单号、入库日期、物料信息、数量、价格等",
+                "data_filtering": "已过滤所有单号和物料编码均为空的记录"
             },
             "data": purchase_inbound_data
         }

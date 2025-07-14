@@ -9,10 +9,12 @@ from vscode_config_reader import get_data_directory
 import pandas as pd
 import json
 import os
+from datetime import datetime
 from typing import Dict, List, Any, Optional
 from field_mapping_utils import FieldMappingUtils
 from enhanced_date_parser import EnhancedDateParser
 from enhanced_logger import EnhancedLogger
+from data_filter import DataFilter
 from material_manager import get_db_client
 
 def parse_sales_outbound(excel_file_path: str, 
@@ -83,6 +85,33 @@ def parse_sales_outbound(excel_file_path: str,
                 if english_dict:
                     data.append(english_dict)
 
+        # 数据过滤
+        logger.info(f"开始数据过滤，原始记录数: {len(data)}")
+        
+        # 第一步：过滤空记录
+        filtered_data, filtered_count = DataFilter.filter_empty_records(data)
+        logger.info(f"过滤空记录后: {len(filtered_data)} 条记录，过滤掉 {filtered_count} 条")
+        
+        # 第二步：进一步过滤，确保记录包含关键字段
+        final_data = []
+        for record in filtered_data:
+            # 销售出库记录应至少包含出库单号或物料编码
+            if (record.get('outbound_order_number') and str(record.get('outbound_order_number')).strip()) or \
+               (record.get('material_code') and str(record.get('material_code')).strip()):
+                final_data.append(record)
+        
+        additional_filtered = len(filtered_data) - len(final_data)
+        logger.info(f"进一步过滤后: {len(final_data)} 条记录，额外过滤掉 {additional_filtered} 条")
+        
+        # 打印过滤摘要
+        DataFilter.print_filter_summary(
+            original_count=len(data),
+            filtered_count=len(data) - len(final_data),
+            data_type="销售出库记录"
+        )
+        
+        data = final_data
+
         date_parser = EnhancedDateParser()
         date_fields = ['outbound_date'] 
         for record in data:
@@ -123,7 +152,18 @@ def save_sales_outbound_data(sales_outbound_data: List[Dict[str, Any]], output_f
                 "table_name": "sales_outbound",
                 "table_chinese_name": "销售出库明细表",
                 "total_records": len(sales_outbound_data),
-                "generated_by": "parse5_sales_outbound.py"
+                "source": "imsviewer.xlsx - 销售出库明细表",
+                "generated_by": "parse5_sales_outbound.py",
+                "generated_at": datetime.now().isoformat(),
+                "last_updated": datetime.now().isoformat(),
+                "description": "销售出库明细数据，包含出库单号、物料信息、数量、单价等",
+                "data_filtering": {
+                    "applied": True,
+                    "filters": [
+                        "移除空记录",
+                        "确保记录包含出库单号或物料编码"
+                    ]
+                }
             },
             "data": sales_outbound_data
         }

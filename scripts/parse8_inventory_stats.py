@@ -9,8 +9,10 @@ from vscode_config_reader import get_data_directory
 import pandas as pd
 import json
 import os
+from datetime import datetime
 from typing import Dict, List, Any
 from field_mapping_utils import field_mapper, translate_dict_to_english
+from data_filter import DataFilter
 
 def parse_inventory_stats(excel_file_path: str, sheet_name: str = "库存统计表") -> List[Dict[str, Any]]:
     """
@@ -64,6 +66,43 @@ def parse_inventory_stats(excel_file_path: str, sheet_name: str = "库存统计�
             english_row = translate_dict_to_english(row_dict)
             data.append(english_row)
         
+        # 数据过滤
+        print(f"开始数据过滤，原始记录数: {len(data)}")
+        
+        # 第一步：过滤空记录
+        filtered_data, filtered_count = DataFilter.filter_empty_records(data)
+        print(f"过滤空记录后: {len(filtered_data)} 条记录，过滤掉 {filtered_count} 条")
+        
+        # 第二步：进一步过滤，确保记录包含关键字段
+        final_data = []
+        for record in filtered_data:
+            # 库存统计记录应至少包含物料编码或物料名称
+            if (record.get('material_code') and str(record.get('material_code')).strip()) or \
+               (record.get('material_name') and str(record.get('material_name')).strip()):
+                final_data.append(record)
+        
+        additional_filtered = len(filtered_data) - len(final_data)
+        print(f"进一步过滤后: {len(final_data)} 条记录，额外过滤掉 {additional_filtered} 条")
+        
+        # 打印过滤摘要
+        DataFilter.print_filter_summary(
+            original_count=len(data),
+            filtered_count=len(data) - len(final_data),
+            data_type="库存统计记录"
+        )
+        
+        data = final_data
+        
+        # 处理日期字段，确保可以序列化
+        for record in data:
+            for key, value in record.items():
+                if pd.isna(value):
+                    record[key] = None
+                elif hasattr(value, 'isoformat'):  # 处理日期时间对象
+                    record[key] = value.isoformat()
+                elif isinstance(value, pd.Timestamp):
+                    record[key] = value.isoformat()
+        
         print(f"成功解析 {len(data)} 条库存统计")
         return data
     except Exception as e:
@@ -83,8 +122,19 @@ def save_inventory_stats_data(inventory_stats_data: List[Dict[str, Any]], output
                 "table_name": "inventory_stats",
                 "table_chinese_name": "库存统计表",
                 "total_records": len(inventory_stats_data),
+                "source": "imsviewer.xlsx - 库存统计表",
                 "field_mapping": field_mapper.get_table_schema("inventory_stats"),
                 "generated_by": "parse8_inventory_stats.py",
+                "generated_at": datetime.now().isoformat(),
+                "last_updated": datetime.now().isoformat(),
+                "description": "库存统计数据，包含物料编码、物料名称、库存数量等",
+                "data_filtering": {
+                    "applied": True,
+                    "filters": [
+                        "移除空记录",
+                        "确保记录包含物料编码或物料名称"
+                    ]
+                },
                 "dictionary_version": field_mapper._dictionary.get("metadata", {}).get("version", "unknown")
             },
             "data": inventory_stats_data

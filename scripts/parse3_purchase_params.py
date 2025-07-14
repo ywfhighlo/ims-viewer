@@ -11,6 +11,7 @@ import os
 from typing import Dict, List, Any
 from field_mapping_utils import field_mapper, translate_dict_to_english
 from vscode_config_reader import get_data_directory
+from data_filter import DataFilter
 
 def parse_purchase_params(excel_file_path: str, sheet_name: str = "进货参数表") -> List[Dict[str, Any]]:
     """
@@ -30,10 +31,46 @@ def parse_purchase_params(excel_file_path: str, sheet_name: str = "进货参数�
         
         # 使用统一词典翻译和验证
         field_mapping = field_mapper.create_mapping_for_excel(excel_headers, "purchase_params")
-        data = [translate_dict_to_english(row.dropna().to_dict()) for _, row in df.iterrows()]
         
-        print(f"成功解析 {len(data)} 条进货参数")
-        return data
+        # 转换数据
+        data = []
+        for _, row in df.iterrows():
+            row_dict = {}
+            for col in excel_headers:
+                value = row[col]
+                if pd.isna(value):
+                    value = None
+                else:
+                    value = str(value).strip() if value else None
+                row_dict[col] = value
+            
+            # 使用字段映射转换为英文字段名
+            english_row = {}
+            for chinese_field, value in row_dict.items():
+                english_field = field_mapping.get(chinese_field, chinese_field)
+                english_row[english_field] = value
+            
+            data.append(english_row)
+        
+        # 使用 DataFilter 过滤无效记录
+        filtered_data, filtered_count = DataFilter.filter_empty_records(data)
+        
+        # 进一步过滤：要求至少有物料编码或物料名称
+        valid_data = []
+        for record in filtered_data:
+            material_code = record.get('material_code')
+            material_name = record.get('material_name')
+            if (DataFilter.is_valid_string(material_code) or 
+                DataFilter.is_valid_string(material_name)):
+                valid_data.append(record)
+        
+        additional_filtered = len(filtered_data) - len(valid_data)
+        total_filtered = filtered_count + additional_filtered
+        
+        # 打印过滤结果摘要
+        DataFilter.print_filter_summary(len(data), total_filtered, "进货参数记录")
+        
+        return valid_data
     except Exception as e:
         print(f"解析进货参数时出错: {str(e)}")
         raise
@@ -46,6 +83,8 @@ def save_purchase_params_json(data: List[Dict[str, Any]], output_file: str = Non
         if output_file is None:
             data_dir = get_data_directory()
             output_file = os.path.join(data_dir, "purchase_params.json")
+        from datetime import datetime
+        
         output_data = {
             "metadata": {
                 "table_name": "purchase_params",
@@ -53,7 +92,12 @@ def save_purchase_params_json(data: List[Dict[str, Any]], output_file: str = Non
                 "total_records": len(data),
                 "field_mapping": field_mapper.get_table_schema("purchase_params"),
                 "generated_by": "parse3_purchase_params.py",
-                "dictionary_version": field_mapper._dictionary.get("metadata", {}).get("version", "unknown")
+                "dictionary_version": field_mapper._dictionary.get("metadata", {}).get("version", "unknown"),
+                "source": "imsviewer.xlsx - 进货参数表",
+                "generated_at": datetime.now().isoformat(),
+                "last_updated": datetime.now().isoformat(),
+                "description": "进货参数表数据，包含物料编码、名称、规格、供应商等信息",
+                "data_filtering": "已过滤所有物料编码和物料名称均为空的记录"
             },
             "data": data
         }

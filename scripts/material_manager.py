@@ -23,7 +23,7 @@ DATABASE_NAME = get_database_name()
 def generate_material_code(db, platform, type1, type2, supplier_code):
     """
     根据规则生成唯一的物料编码。
-    编码格式: P-12-03-0000-001
+    编码格式: P-XX-XX-XXXX-XXX
     
     Args:
         platform: 物料平台 (P=采购, R=自研)
@@ -60,7 +60,7 @@ def generate_material_code(db, platform, type1, type2, supplier_code):
     if last_material and "sequence" in last_material:
         new_sequence = last_material["sequence"] + 1
         
-    # 格式化编码: P-12-03-0000-001
+    # 格式化编码: P-XX-XX-XXXX-XXX
     material_code = f"{prefix}-{new_sequence:03d}"
     
     return material_code, new_sequence

@@ -4,12 +4,11 @@
 标准物料编码表生成器
 
 根据imsviewer-a.md文档中定义的编码规则生成物料编码表
-编码格式：P-2301-0000-001
+编码格式：P-XX-XX-XXXX-XXX
 
 编码规则：
 - 第1位：P(采购)或R(自研)
-- 第2位：1(国产)或2(非国产)
-- 第3位：1(纯软件)、2(服务器)、3(工控机)、4(配件)
+- 第2-3位：国产/非国产+物料类型(如13=国产工控机)
 - 第4-5位：供应商代码(01-99)
 - 第6-9位：保留位(固定0000)
 - 第10-12位：物料序号(001-999)
@@ -43,14 +42,20 @@ class StandardMaterialTableGenerator:
         self.init_supplier_codes()
         
     def init_supplier_codes(self) -> None:
-        """初始化供应商代码映射"""
-        self.supplier_codes = {
-            '福州创实讯联信息技术有限公司': '01',
-            '深圳迈拓诚悦科技有限公司': '02',
-            '深圳顺信科技有限公司': '03',
-            '深圳广和电子有限公司': '04',
-            '深圳市鲲鹏网络科技有限公司': '05'
-        }
+        """从suppliers.json文件初始化供应商代码映射"""
+        self.supplier_codes = {}
+        
+        # 从suppliers.json文件读取供应商编码映射
+        suppliers_data = self.load_json_file('suppliers.json')
+        if suppliers_data and 'data' in suppliers_data:
+            for supplier in suppliers_data['data']:
+                supplier_name = supplier.get('supplier_name', '')
+                supplier_code = supplier.get('supplier_code', '')
+                if supplier_name and supplier_code:
+                    self.supplier_codes[supplier_name] = supplier_code
+            print(f"从 suppliers.json 加载了 {len(self.supplier_codes)} 个供应商编码映射")
+        else:
+            print("警告: 无法从 suppliers.json 文件读取供应商信息，将使用动态分配")
         
     def load_json_file(self, filename: str) -> Dict[str, Any]:
         """加载JSON文件"""
@@ -66,32 +71,22 @@ class StandardMaterialTableGenerator:
             return {}
     
     def get_supplier_code(self, supplier_name: str) -> str:
-        """获取供应商代码"""
+        """获取供应商代码 - 仅支持精确匹配"""
         if not supplier_name:
             return '99'  # 未知供应商
         
-        # 精确匹配
-        for full_name, code in self.supplier_codes.items():
-            if full_name in supplier_name:
-                return code
+        # 精确匹配 - 供应商名称必须完全一致
+        if supplier_name in self.supplier_codes:
+            return self.supplier_codes[supplier_name]
         
-        # 关键词匹配
-        if '创实' in supplier_name:
-            return '01'
-        elif '迈拓' in supplier_name:
-            return '02'
-        elif '顺信' in supplier_name:
-            return '03'
-        elif '广和' in supplier_name:
-            return '04'
-        elif '鲲鹏' in supplier_name:
-            return '05'
-        
-        # 如果没有匹配到，分配新的代码
-        next_code = str(len(self.supplier_codes) + 1).zfill(2)
-        if next_code not in self.supplier_codes.values():
-            self.supplier_codes[supplier_name] = next_code
-            return next_code
+        # 如果没有精确匹配到，分配新的代码
+        existing_codes = set(self.supplier_codes.values())
+        for i in range(13, 99):
+            new_code = f"{i:02d}"
+            if new_code not in existing_codes:
+                self.supplier_codes[supplier_name] = new_code
+                print(f"为新供应商 '{supplier_name}' 分配代码: {new_code}")
+                return new_code
         
         return '99'  # 默认未知供应商
     
@@ -104,6 +99,12 @@ class StandardMaterialTableGenerator:
         3 - 工控机（硬件）
         4 - 配件（如CF卡、SSD卡、硬盘、内存、板卡、电源、机箱等）
         """
+        # 安全处理空值
+        if material_name is None:
+            material_name = ''
+        if specification is None:
+            specification = ''
+        
         name_spec = f"{material_name} {specification}".lower()
         
         # 纯软件
@@ -136,6 +137,12 @@ class StandardMaterialTableGenerator:
         1 - 国产
         2 - 非国产
         """
+        # 安全处理空值
+        if supplier_name is None:
+            supplier_name = ''
+        if material_name is None:
+            material_name = ''
+        
         # 根据供应商名称判断
         domestic_keywords = ['福州', '深圳', '北京', '上海', '广州', '杭州', '成都', '西安']
         foreign_keywords = ['美国', '德国', '日本', '韩国', '台湾', 'intel', 'amd', 'nvidia']
@@ -157,22 +164,20 @@ class StandardMaterialTableGenerator:
     def generate_material_code(self, material_name: str, specification: str, supplier_name: str) -> str:
         """生成标准物料编码
         
-        格式：P-2301-0000-001
+        格式：P-XX-XX-XXXX-XXX
         - P: 采购物料
-        - 2: 第2位（国产/非国产）
-        - 3: 第3位（物料类型）
-        - 01: 第4-5位（供应商代码）
-        - 0000: 第6-9位（保留位）
-        - 001: 第10-12位（物料序号）
+        - XX: 国产/非国产 + 物料类型（如：13表示国产工控机）
+        - XX: 供应商代码（如：01, 02, 03等）
+        - XXXX: 保留位（固定0000）
+        - XXX: 物料序号（001, 002, 003等）
         """
         # 第1位：固定为P（采购）
         platform = 'P'
         
-        # 第2位：国产/非国产
+        # 第2-3位：国产/非国产 + 物料类型
         origin_type = self.determine_origin_type(supplier_name, material_name)
-        
-        # 第3位：物料类型
         material_type = self.classify_material_type(material_name, specification)
+        type_code = f"{origin_type}{material_type}"
         
         # 第4-5位：供应商代码
         supplier_code = self.get_supplier_code(supplier_name)
@@ -184,8 +189,8 @@ class StandardMaterialTableGenerator:
         sequence = str(self.material_counter).zfill(3)
         self.material_counter += 1
         
-        # 组合编码
-        new_code = f"{platform}-{origin_type}{material_type}{supplier_code}-{reserved}-{sequence}"
+        # 组合编码：P-XX-XX-XXXX-XXX
+        new_code = f"{platform}-{type_code}-{supplier_code}-{reserved}-{sequence}"
         
         return new_code
     
@@ -210,6 +215,14 @@ class StandardMaterialTableGenerator:
             # 分析编码组成
             code_analysis = self.analyze_material_code(new_code)
             
+            # 安全处理数值字段
+            initial_quantity = item.get('initial_quantity', 0)
+            if initial_quantity is None:
+                initial_quantity = 0
+            safety_stock = item.get('safety_stock', 0)
+            if safety_stock is None:
+                safety_stock = 0
+            
             self.materials[old_code] = {
                 'id': len(self.materials) + 1,
                 'old_code': old_code,
@@ -218,8 +231,8 @@ class StandardMaterialTableGenerator:
                 'specification': specification,
                 'unit': item.get('unit', '台'),
                 'supplier_name': supplier_name,
-                'initial_quantity': float(item.get('initial_quantity', 0)),
-                'safety_stock': float(item.get('safety_stock', 0)),
+                'initial_quantity': float(initial_quantity),
+                'safety_stock': float(safety_stock),
                 'parameter_description': item.get('parameter_description', ''),
                 'handler': item.get('handler', ''),
                 'source': 'purchase_params',
@@ -231,21 +244,21 @@ class StandardMaterialTableGenerator:
     
     def analyze_material_code(self, code: str) -> Dict[str, str]:
         """分析物料编码的组成部分"""
-        # 解析编码格式：P-2301-0000-001
+        # 解析编码格式：P-XX-XX-XXXX-XXX
         parts = code.split('-')
-        if len(parts) != 4:
+        if len(parts) != 5:
             return {'error': '编码格式不正确'}
         
         platform = parts[0]
-        type_supplier = parts[1]
-        reserved = parts[2]
-        sequence = parts[3]
+        type_code = parts[1]
+        supplier_code = parts[2]
+        reserved = parts[3]
+        sequence = parts[4]
         
-        # 解析类型和供应商部分
-        if len(type_supplier) >= 4:
-            origin_type = type_supplier[0]
-            material_type = type_supplier[1]
-            supplier_code = type_supplier[2:4]
+        # 解析类型编码部分
+        if len(type_code) >= 2:
+            origin_type = type_code[0]
+            material_type = type_code[1]
         else:
             return {'error': '编码格式不正确'}
         
@@ -268,6 +281,7 @@ class StandardMaterialTableGenerator:
         
         return {
             'platform': f"{platform} ({platform_desc})",
+            'type_code': f"{type_code} ({origin_desc}{type_desc})",
             'origin_type': f"{origin_type} ({origin_desc})",
             'material_type': f"{material_type} ({type_desc})",
             'supplier_code': f"{supplier_code} ({supplier_name})",
@@ -357,14 +371,14 @@ class StandardMaterialTableGenerator:
         for material in self.materials.values():
             code = material['new_code']
             parts = code.split('-')
-            if len(parts) >= 4:
+            if len(parts) >= 5:  # P-XX-XX-XXXX-XXX格式
                 platform = parts[0]
-                type_supplier = parts[1]
+                type_code = parts[1]
+                supplier_code = parts[2]
                 
-                if len(type_supplier) >= 4:
-                    origin_type = type_supplier[0]
-                    material_type = type_supplier[1]
-                    supplier_code = type_supplier[2:4]
+                if len(type_code) >= 2:
+                    origin_type = type_code[0]
+                    material_type = type_code[1]
                     
                     platform_stats[platform] = platform_stats.get(platform, 0) + 1
                     origin_stats[origin_type] = origin_stats.get(origin_type, 0) + 1
@@ -408,25 +422,31 @@ CREATE TABLE IF NOT EXISTS materials (
         
         # 生成插入语句
         for material in self.materials.values():
+            # 安全处理字符串字段
+            def safe_str(value):
+                if value is None:
+                    return ''
+                return str(value).replace("'", "''")
+            
             insert_sql = f"""
 INSERT INTO materials (
     old_code, new_code, material_name, specification, unit,
     supplier_name, initial_quantity, safety_stock,
     parameter_description, handler, source, created_at, updated_at, is_active
 ) VALUES (
-    '{material['old_code']}',
-    '{material['new_code']}',
-    '{material['material_name'].replace("'", "''")}',
-    '{material['specification'].replace("'", "''")}',
-    '{material['unit']}',
-    '{material['supplier_name'].replace("'", "''")}',
+    '{safe_str(material['old_code'])}',
+    '{safe_str(material['new_code'])}',
+    '{safe_str(material['material_name'])}',
+    '{safe_str(material['specification'])}',
+    '{safe_str(material['unit'])}',
+    '{safe_str(material['supplier_name'])}',
     {material['initial_quantity']},
     {material['safety_stock']},
-    '{material['parameter_description'].replace("'", "''")}',
-    '{material['handler']}',
-    '{material['source']}',
-    '{material['created_at']}',
-    '{material['updated_at']}',
+    '{safe_str(material['parameter_description'])}',
+    '{safe_str(material['handler'])}',
+    '{safe_str(material['source'])}',
+    '{safe_str(material['created_at'])}',
+    '{safe_str(material['updated_at'])}',
     {1 if material['is_active'] else 0}
 );"""
             sql_statements.append(insert_sql)
@@ -446,14 +466,23 @@ INSERT INTO materials (
                 'generated_at': datetime.now().isoformat(),
                 'total_materials': len(materials_list),
                 'encoding_rules': {
-                    'format': 'P-2301-0000-001',
+                    'format': 'P-XX-XX-XXXX-XXX',
                     'description': {
-                        'position_1': 'P(采购)或R(自研)',
-                        'position_2': '1(国产)或2(非国产)',
-                        'position_3': '1(纯软件)、2(服务器)、3(工控机)、4(配件)',
-                        'position_4_5': '供应商代码(01-99)',
-                        'position_6_9': '保留位(固定0000)',
-                        'position_10_12': '物料序号(001-999)'
+                        'segment_1': 'P(采购)或R(自研)',
+                        'segment_2': '国产/非国产+物料类型(如13=国产工控机)',
+                        'segment_3': '供应商代码(01-99)',
+                        'segment_4': '保留位(固定0000)',
+                        'segment_5': '物料序号(001-999)'
+                    },
+                    'type_codes': {
+                        '11': '国产纯软件',
+                        '12': '国产服务器',
+                        '13': '国产工控机',
+                        '14': '国产配件',
+                        '21': '非国产纯软件',
+                        '22': '非国产服务器',
+                        '23': '非国产工控机',
+                        '24': '非国产配件'
                     },
                     'supplier_codes': self.supplier_codes
                 }
@@ -474,24 +503,8 @@ INSERT INTO materials (
         with open(sql_filepath, 'w', encoding='utf-8') as f:
             f.write(self.generate_sql_insert_statements())
         
-        print(f"✓ 已生成SQL插入脚本: {sql_filepath}")
-        
-        # 保存标准编码映射文件
-        mapping_data = {
-            'metadata': {
-                'title': '标准物料编码映射表',
-                'description': '旧编码到标准编码的映射关系',
-                'generated_at': datetime.now().isoformat(),
-                'encoding_rules': 'P-2301-0000-001格式'
-            },
-            'mappings': {old_code: material['new_code'] for old_code, material in self.materials.items()}
-        }
-        
-        mapping_filepath = os.path.join(self.docs_dir, 'standard_material_code_mapping.json')
-        with open(mapping_filepath, 'w', encoding='utf-8') as f:
-            json.dump(mapping_data, f, ensure_ascii=False, indent=2)
-        
-        print(f"✓ 已生成标准编码映射文件: {mapping_filepath}")
+        print(f"✓ 已生成SQL插入脚本: {sql_filepath}")        
+
     
     def print_summary(self) -> None:
         """打印生成摘要"""
@@ -534,18 +547,16 @@ INSERT INTO materials (
             print(f"  {supplier_code} ({supplier_name}): {count}")
         
         print(f"\n📋 编码规则:")
-        print(f"  格式: P-2301-0000-001")
-        print(f"  说明: {{平台}}-{{来源类型}}{{物料类型}}{{供应商}}-{{保留位}}-{{序号}}")
+        print(f"  格式: P-XX-XX-XXXX-XXX")
+        print(f"  说明: {{平台}}-{{国产/非国产+物料类型}}-{{供应商代码}}-{{保留位}}-{{序号}}")
         
         print(f"\n📄 生成的文件:")
         print(f"  - standard_material_table.json (完整物料数据)")
         print(f"  - standard_material_table.sql (SQL插入脚本)")
-        print(f"  - standard_material_code_mapping.json (编码映射表)")
         
         print(f"\n💡 使用建议:")
         print(f"  1. 使用 standard_material_table.sql 直接导入数据库")
-        print(f"  2. 使用 standard_material_code_mapping.json 进行数据迁移")
-        print(f"  3. 新编码严格遵循imsviewer-a.md文档规定的标准")
+        print(f"  2. 新编码严格遵循imsviewer-a.md文档规定的标准")
         
         # 显示前几个示例
         print(f"\n🔍 编码示例:")
@@ -566,7 +577,7 @@ INSERT INTO materials (
     def generate(self) -> None:
         """执行完整的生成流程"""
         print("开始生成标准物料编码表...")
-        print("编码规则: P-2301-0000-001 (遵循imsviewer-a.md文档规定)")
+        print("编码规则: P-XX-XX-XXXX-XXX (遵循imsviewer-a.md文档规定)")
         
         # 提取物料信息
         print("\n1. 从进货参数中提取物料信息...")

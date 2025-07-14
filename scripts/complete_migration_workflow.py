@@ -137,8 +137,7 @@ class MigrationWorkflow:
             # 检查生成的文件
             expected_files = [
                 "standard_material_table.json",
-                "standard_material_table.sql",
-                "standard_material_code_mapping.json"
+                "standard_material_table.sql"
             ]
             
             all_generated = True
@@ -151,15 +150,15 @@ class MigrationWorkflow:
                     all_generated = False
             
             if all_generated:
-                # 读取映射文件统计信息
-                mapping_file = os.path.join(self.output_dir, "standard_material_code_mapping.json")
+                # 读取标准物料表统计信息
+                material_file = os.path.join(self.output_dir, "standard_material_table.json")
                 try:
-                    with open(mapping_file, 'r', encoding='utf-8') as f:
-                        mapping_data = json.load(f)
-                        mapping_count = len(mapping_data.get('mappings', {}))
-                        self.log_step("标准编码统计", "success", f"生成 {mapping_count} 个编码映射")
+                    with open(material_file, 'r', encoding='utf-8') as f:
+                        material_data = json.load(f)
+                        material_count = len(material_data.get('materials', []))
+                        self.log_step("标准编码统计", "success", f"生成 {material_count} 个标准物料")
                 except Exception as e:
-                    self.log_step("标准编码统计", "warning", f"无法读取映射文件: {str(e)}")
+                    self.log_step("标准编码统计", "warning", f"无法读取物料文件: {str(e)}")
             
             return all_generated
         else:

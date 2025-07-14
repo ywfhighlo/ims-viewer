@@ -48,6 +48,12 @@
       "description": "备注说明",
       "category": "general"
     },
+    "供应商编码": {
+      "english": "supplier_code",
+      "data_type": "string",
+      "description": "供应商的唯一编码，2位数字格式（01-99）",
+      "category": "supplier"
+    },
     "客户名称": {
       "english": "customer_name",
       "data_type": "string",
@@ -310,6 +316,7 @@
       "english_name": "suppliers",
       "description": "供应商基础信息表",
       "fields": [
+        "供应商编码",
         "供应商名称",
         "统一社会信用代码",
         "单位地址",

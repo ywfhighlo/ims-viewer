@@ -50,17 +50,28 @@ class StandardCodeImporter:
         print(f"连接数据库: {mongo_config['database_name']}")
         
     def _load_standard_code_mapping(self) -> Dict[str, str]:
-        """加载标准编码映射"""
-        mapping_file = os.path.join(self.data_directory, 'standard_material_code_mapping.json')
+        """从标准物料表中加载编码映射"""
+        table_file = os.path.join(self.data_directory, 'standard_material_table.json')
         
-        if not os.path.exists(mapping_file):
-            print(f"警告: 标准编码映射文件不存在: {mapping_file}")
+        if not os.path.exists(table_file):
+            print(f"警告: 标准物料表文件不存在: {table_file}")
             return {}
         
         try:
-            with open(mapping_file, 'r', encoding='utf-8') as f:
-                mapping = json.load(f)
-            print(f"成功加载标准编码映射，共 {len(mapping)} 条记录")
+            with open(table_file, 'r', encoding='utf-8') as f:
+                table_data = json.load(f)
+            
+            # 从materials数组中提取old_code到new_code的映射
+            mapping = {}
+            materials = table_data.get('materials', [])
+            
+            for material in materials:
+                old_code = material.get('old_code')
+                new_code = material.get('new_code')
+                if old_code and new_code:
+                    mapping[old_code] = new_code
+            
+            print(f"成功从标准物料表加载编码映射，共 {len(mapping)} 条记录")
             return mapping
         except Exception as e:
             print(f"加载标准编码映射失败: {e}")

@@ -11,6 +11,7 @@ import os
 from typing import Dict, List, Any
 from field_mapping_utils import field_mapper, translate_dict_to_english
 from vscode_config_reader import get_data_directory
+from data_filter import DataFilter
 
 def parse_supplier_info(excel_file_path: str, sheet_name: str = "供应商信息表") -> List[Dict[str, Any]]:
     """
@@ -55,6 +56,9 @@ def parse_supplier_info(excel_file_path: str, sheet_name: str = "供应商信息
         
         # 转换数据
         suppliers_data = []
+        # 获取预期的英文字段顺序
+        expected_english_fields = field_mapper.get_table_fields("suppliers", "english")
+        
         for index, row in df.iterrows():
             # 创建中文字段的数据字典
             chinese_data = {}
@@ -68,9 +72,52 @@ def parse_supplier_info(excel_file_path: str, sheet_name: str = "供应商信息
             # 使用统一词典翻译为英文字段
             english_data = translate_dict_to_english(chinese_data)
             
-            suppliers_data.append(english_data)
+            # 按照预期字段顺序重新排列数据
+            ordered_data = {}
+            
+            # 首先添加supplier_code字段（如果存在）
+            if 'supplier_code' in english_data:
+                ordered_data['supplier_code'] = english_data['supplier_code']
+            
+            # 然后按照预期字段顺序添加其他字段
+            for field in expected_english_fields:
+                if field in english_data and field != 'supplier_code':
+                    ordered_data[field] = english_data[field]
+            
+            # 添加任何不在预期字段中但存在于数据中的字段（除了supplier_code）
+            for field, value in english_data.items():
+                if field not in ordered_data:
+                    ordered_data[field] = value
+            
+            suppliers_data.append(ordered_data)
         
-        print(f"成功解析 {len(suppliers_data)} 条供应商信息")
+        # 使用 DataFilter 过滤无效记录
+        suppliers_data, filtered_count = DataFilter.clean_and_filter_supplier_data(suppliers_data)
+        
+        # 为供应商按顺序分配编码
+        suppliers_data = DataFilter.assign_sequential_codes(suppliers_data, 'supplier_code')
+        
+        # 重新排序字段，确保supplier_code在第一位
+        for i, supplier in enumerate(suppliers_data):
+            ordered_supplier = {}
+            # 首先添加supplier_code
+            if 'supplier_code' in supplier:
+                ordered_supplier['supplier_code'] = supplier['supplier_code']
+            
+            # 然后按照预期字段顺序添加其他字段
+            for field in expected_english_fields:
+                if field in supplier and field != 'supplier_code':
+                    ordered_supplier[field] = supplier[field]
+            
+            # 添加任何其他字段
+            for field, value in supplier.items():
+                if field not in ordered_supplier:
+                    ordered_supplier[field] = value
+            
+            suppliers_data[i] = ordered_supplier
+        
+        # 打印过滤结果摘要
+        DataFilter.print_filter_summary(len(df), filtered_count, "供应商记录")
         return suppliers_data
         
     except Exception as e:
@@ -148,15 +195,23 @@ def save_suppliers_data(suppliers_data: List[Dict[str, Any]], output_file: str =
         if output_file is None:
             data_dir = get_data_directory()
             output_file = os.path.join(data_dir, "suppliers.json")
+        from datetime import datetime
+        
         # 添加字段映射信息到输出
         output_data = {
             "metadata": {
                 "table_name": "suppliers",
-                "table_chinese_name": "供应商信息表",
+                "source": "excel_sheet",
+                "generated_at": datetime.now().isoformat(),
                 "total_records": len(suppliers_data),
+                "last_updated": datetime.now().isoformat(),
+                "description": "供应商信息表（已过滤空记录）",
+                "encoding_rule": "2位数字编码，01-98为具体供应商，99为未指定供应商",
+                "table_chinese_name": "供应商信息表",
                 "field_mapping": field_mapper.get_table_schema("suppliers"),
                 "generated_by": "parse_supplier_info.py",
-                "dictionary_version": field_mapper._dictionary.get("metadata", {}).get("version", "unknown")
+                "dictionary_version": field_mapper._dictionary.get("metadata", {}).get("version", "unknown"),
+                "data_filtering": "已过滤所有字段为空的记录"
             },
             "data": suppliers_data
         }

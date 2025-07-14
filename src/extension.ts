@@ -325,7 +325,7 @@ async function runExcelToJsonProcess(context: vscode.ExtensionContext, excelPath
         outputChannel.appendLine(`- purchase_inbound.json (进货入库)`);
         outputChannel.appendLine(`- sales_outbound.json (销售出库)`);
         outputChannel.appendLine(`- standard_material_table.json (标准物料编码表)`);
-        outputChannel.appendLine(`- standard_material_code_mapping.json (编码映射表)`);
+        outputChannel.appendLine(`- standard_material_table.json (标准物料编码表)`);
         outputChannel.appendLine(`- 以及其他相关JSON文件`);
         
         if (outputMode !== 'development') {
@@ -393,7 +393,7 @@ async function runMigrationProcess(context: vscode.ExtensionContext, excelPath: 
         outputChannel.appendLine(`\n使用的文件：`);
         outputChannel.appendLine(`- docs/standard_material_table.json (完整物料数据)`);
         outputChannel.appendLine(`- docs/standard_material_table.sql (SQL插入脚本)`);
-        outputChannel.appendLine(`- docs/standard_material_code_mapping.json (编码映射表)`);
+        outputChannel.appendLine(`- docs/standard_material_table.json (标准物料编码表)`);
         outputChannel.appendLine(`- 以及其他JSON分表文件`);
         outputChannel.appendLine(`\n数据库导入：`);
         outputChannel.appendLine(`- MongoDB数据库: ${dbName}`);
