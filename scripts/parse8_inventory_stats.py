@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+from vscode_config_reader import get_data_directory
 """
 库存统计表解析脚本
 使用统一的字段映射词典进行数据转换
@@ -69,11 +70,14 @@ def parse_inventory_stats(excel_file_path: str, sheet_name: str = "库存统计�
         print(f"解析库存统计时出错: {str(e)}")
         raise
 
-def save_inventory_stats_data(inventory_stats_data: List[Dict[str, Any]], output_file: str = "docs/inventory_stats.json"):
+def save_inventory_stats_data(inventory_stats_data: List[Dict[str, Any]], output_file: str = None):
     """
     保存库存统计数据为JSON文件
     """
     try:
+        if output_file is None:
+            data_dir = get_data_directory()
+            output_file = os.path.join(data_dir, "inventory_stats.json")
         output_data = {
             "metadata": {
                 "table_name": "inventory_stats",
@@ -97,7 +101,8 @@ def save_inventory_stats_data(inventory_stats_data: List[Dict[str, Any]], output
 
 def main():
     """主函数"""
-    excel_file = "docs/imsviewer.xlsx"
+    data_dir = get_data_directory()
+    excel_file = os.path.join(data_dir, "imsviewer.xlsx")
     if not os.path.exists(excel_file):
         print(f"Excel文件不存在: {excel_file}")
         return

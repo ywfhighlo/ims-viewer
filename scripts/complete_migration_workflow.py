@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+from vscode_config_reader import get_data_directory
 """
 完整的数据迁移工作流脚本
 整合Excel解析、标准编码生成和数据库导入的完整流程
@@ -10,15 +11,20 @@ import sys
 import subprocess
 import json
 from datetime import datetime
-from typing import Dict, List, Any, Optional
+from typing import List, Dict, Any, Optional
+from vscode_config_reader import get_data_directory
 
 class MigrationWorkflow:
     """数据迁移工作流管理器"""
     
-    def __init__(self, excel_file: str = "docs/imsviewer.xlsx"):
+    def __init__(self, excel_file: str = None):
         """初始化工作流"""
-        self.excel_file = excel_file
-        self.output_dir = "docs"
+        if excel_file is None:
+            data_dir = get_data_directory()
+            self.excel_file = os.path.join(data_dir, "imsviewer.xlsx")
+        else:
+            self.excel_file = excel_file
+        self.output_dir = get_data_directory()
         self.scripts_dir = "scripts"
         self.workflow_log = []
         
@@ -253,8 +259,11 @@ def main():
     """主函数"""
     import argparse
     
+    # 获取默认Excel文件路径
+    default_excel = os.path.join(get_data_directory(), "imsviewer.xlsx")
+    
     parser = argparse.ArgumentParser(description="完整的数据迁移工作流")
-    parser.add_argument("--excel", default="docs/imsviewer.xlsx", help="Excel文件路径")
+    parser.add_argument("--excel", default=default_excel, help="Excel文件路径")
     parser.add_argument("--step", choices=["all", "parse", "codes", "import", "verify"], 
                        default="all", help="执行特定步骤")
     

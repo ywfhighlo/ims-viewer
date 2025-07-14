@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+from vscode_config_reader import get_data_directory
 """
 解析进货入库明细表 - 增强版
 集成了增强的日期解析器、日志系统和改进的字段映射处理
@@ -234,7 +235,7 @@ def parse_purchase_inbound(excel_file_path: str,
             logger.info("数据库连接已关闭")
 
 
-def save_purchase_inbound_data(purchase_inbound_data: List[Dict[str, Any]], output_file: str = "docs/purchase_inbound.json"):
+def save_purchase_inbound_data(purchase_inbound_data: List[Dict[str, Any]], output_file: str = None):
     """
     保存进货入库明细数据为JSON文件
     
@@ -243,6 +244,9 @@ def save_purchase_inbound_data(purchase_inbound_data: List[Dict[str, Any]], outp
         output_file: 输出文件路径
     """
     try:
+        if output_file is None:
+            data_dir = get_data_directory()
+            output_file = os.path.join(data_dir, "purchase_inbound.json")
         # 添加元数据
         output_data = {
             "metadata": {
@@ -269,7 +273,8 @@ def main():
     """
     logger = EnhancedLogger("Parse_Purchase_Inbound_Test", "DEBUG")
     
-    excel_file = "docs/imsviewer.xlsx" # 修正了文件路径
+    data_dir = get_data_directory()
+    excel_file = os.path.join(data_dir, "imsviewer.xlsx") # 修正了文件路径
     
     try:
         # 简化日志调用以进行调试

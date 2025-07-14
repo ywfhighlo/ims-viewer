@@ -23,30 +23,16 @@ import os
 import re
 from datetime import datetime
 from typing import Dict, List, Any, Optional
+from vscode_config_reader import get_data_directory
 
 class StandardMaterialTableGenerator:
     def __init__(self, docs_dir: str = None):
-        # 自动检测docs目录路径
-        if docs_dir is None:
-            # 获取脚本所在目录
-            script_dir = os.path.dirname(os.path.abspath(__file__))
-            # 向上查找docs目录
-            parent_dir = os.path.dirname(script_dir)
-            potential_docs = os.path.join(parent_dir, 'docs')
-            
-            if os.path.exists(potential_docs):
-                self.docs_dir = potential_docs
-            else:
-                # 如果在扩展安装目录中，docs可能在同级目录
-                potential_docs = os.path.join(script_dir, '..', 'docs')
-                potential_docs = os.path.abspath(potential_docs)
-                if os.path.exists(potential_docs):
-                    self.docs_dir = potential_docs
-                else:
-                    # 默认使用相对路径
-                    self.docs_dir = "docs"
-        else:
+        # 优先使用传入的 docs_dir 参数
+        if docs_dir and os.path.exists(docs_dir):
             self.docs_dir = docs_dir
+        else:
+            # 否则，使用配置读取器获取
+            self.docs_dir = get_data_directory()
             
         print(f"使用docs目录: {self.docs_dir}")
         self.materials = {}

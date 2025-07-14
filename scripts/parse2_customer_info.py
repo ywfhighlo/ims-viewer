@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+from vscode_config_reader import get_data_directory
 """
 客户信息表解析脚本
 使用统一的字段映射词典进行数据转换
@@ -51,11 +52,14 @@ def parse_customer_info(excel_file_path: str, sheet_name: str = "客户信息表
         print(f"解析客户信息时出错: {str(e)}")
         raise
 
-def save_customers_data(customers_data: List[Dict[str, Any]], output_file: str = "docs/customers.json"):
+def save_customers_data(customers_data: List[Dict[str, Any]], output_file: str = None):
     """
     保存解析后的客户数据为JSON文件
     """
     try:
+        if output_file is None:
+            data_dir = get_data_directory()
+            output_file = os.path.join(data_dir, "customers.json")
         output_data = {
             "metadata": {
                 "table_name": "customers",
@@ -79,7 +83,8 @@ def save_customers_data(customers_data: List[Dict[str, Any]], output_file: str =
 
 def main():
     """主函数"""
-    excel_file = "docs/imsviewer.xlsx"
+    data_dir = get_data_directory()
+    excel_file = os.path.join(data_dir, "imsviewer.xlsx")
     if not os.path.exists(excel_file):
         print(f"Excel文件不存在: {excel_file}")
         return

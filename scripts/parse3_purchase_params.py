@@ -10,6 +10,7 @@ import json
 import os
 from typing import Dict, List, Any
 from field_mapping_utils import field_mapper, translate_dict_to_english
+from vscode_config_reader import get_data_directory
 
 def parse_purchase_params(excel_file_path: str, sheet_name: str = "进货参数表") -> List[Dict[str, Any]]:
     """
@@ -37,11 +38,14 @@ def parse_purchase_params(excel_file_path: str, sheet_name: str = "进货参数�
         print(f"解析进货参数时出错: {str(e)}")
         raise
 
-def save_purchase_params_json(data: List[Dict[str, Any]], output_file: str = "docs/purchase_params.json"):
+def save_purchase_params_json(data: List[Dict[str, Any]], output_file: str = None):
     """
     保存进货参数数据为JSON文件
     """
     try:
+        if output_file is None:
+            data_dir = get_data_directory()
+            output_file = os.path.join(data_dir, "purchase_params.json")
         output_data = {
             "metadata": {
                 "table_name": "purchase_params",
@@ -63,7 +67,7 @@ def save_purchase_params_json(data: List[Dict[str, Any]], output_file: str = "do
         print(f"保存进货参数数据时出错: {str(e)}")
         raise
 
-def generate_material_code_mapping(data: List[Dict[str, Any]], output_file: str = "docs/material_code_mapping_from_purchase.json"):
+def generate_material_code_mapping(data: List[Dict[str, Any]], output_file: str = None):
     """
     从进货参数数据生成物料编码映射
     
@@ -72,6 +76,9 @@ def generate_material_code_mapping(data: List[Dict[str, Any]], output_file: str 
         output_file: 输出文件路径
     """
     try:
+        if output_file is None:
+            data_dir = get_data_directory()
+            output_file = os.path.join(data_dir, "material_code_mapping_from_purchase.json")
         from datetime import datetime
         
         mappings = []
@@ -116,7 +123,8 @@ def generate_material_code_mapping(data: List[Dict[str, Any]], output_file: str 
 
 def main():
     """主函数"""
-    excel_file = "docs/imsviewer.xlsx"
+    data_dir = get_data_directory()
+    excel_file = os.path.join(data_dir, "imsviewer.xlsx")
     if not os.path.exists(excel_file):
         print(f"Excel文件不存在: {excel_file}")
         return

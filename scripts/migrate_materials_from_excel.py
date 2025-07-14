@@ -10,12 +10,13 @@ import os
 import sys
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure
+from vscode_config_reader import get_data_directory
 
 # --- 配置 ---
 MONGO_URI = "mongodb://localhost:27017/"
 DATABASE_NAME = os.environ.get('IMS_DB_NAME', 'ims_viewer')
 MATERIALS_COLLECTION = "materials"
-EXCEL_FILE = "docs/imsviewer.xlsx"
+# EXCEL_FILE将在运行时动态获取
 SHEET_NAME = "进货入库明细表"
 
 # Excel中的列名
@@ -47,13 +48,15 @@ def migrate_materials():
     print(f"✅ 数据库连接成功，目标集合: '{MATERIALS_COLLECTION}'")
     
     # 2. 读取Excel文件
-    if not os.path.exists(EXCEL_FILE):
-        print(f"❌ Excel文件不存在: {EXCEL_FILE}", file=sys.stderr)
+    data_dir = get_data_directory()
+    excel_file = os.path.join(data_dir, "imsviewer.xlsx")
+    if not os.path.exists(excel_file):
+        print(f"❌ Excel文件不存在: {excel_file}", file=sys.stderr)
         sys.exit(1)
         
     try:
-        df = pd.read_excel(EXCEL_FILE, sheet_name=SHEET_NAME, header=1)
-        print(f"✅ 成功读取Excel文件 '{EXCEL_FILE}', 工作表: '{SHEET_NAME}'")
+        df = pd.read_excel(excel_file, sheet_name=SHEET_NAME, header=1)
+        print(f"✅ 成功读取Excel文件 '{excel_file}', 工作表: '{SHEET_NAME}'")
     except Exception as e:
         print(f"❌ 读取Excel失败: {e}", file=sys.stderr)
         sys.exit(1)

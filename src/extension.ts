@@ -203,6 +203,33 @@ export function activate(context: vscode.ExtensionContext) {
     );
 }
 
+// 获取 `docs` 目录的函数，具有正确的优先级
+function getDocsDirectory(context: vscode.ExtensionContext): string {
+    const config = vscode.workspace.getConfiguration('imsViewer');
+
+    // 1. 优先使用 VSCode 设置中的路径
+    const settingsPath = config.get<string>('docsPath');
+    if (settingsPath && path.isAbsolute(settingsPath) && fs.existsSync(settingsPath)) {
+        outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] 使用来自设置的 docs 目录: ${settingsPath}`);
+        return settingsPath;
+    }
+
+    // 2. 其次，检查工作区（开发目录）下的 `docs` 目录
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+    if (workspaceFolder) {
+        const workspaceDocsPath = path.join(workspaceFolder.uri.fsPath, 'docs');
+        if (fs.existsSync(workspaceDocsPath)) {
+            outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] 使用来自工作区的 docs 目录: ${workspaceDocsPath}`);
+            return workspaceDocsPath;
+        }
+    }
+
+    // 3. 最后，回退到扩展目录下的 `docs` 目录
+    const extensionDocsPath = path.join(context.extensionPath, 'docs');
+    outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] 使用来自扩展的 docs 目录: ${extensionDocsPath}`);
+    return extensionDocsPath;
+}
+
 // 获取输出目录配置
 function getOutputDirectory(context: vscode.ExtensionContext): string {
     const config = vscode.workspace.getConfiguration('imsViewer');
@@ -251,7 +278,7 @@ async function runExcelToJsonProcess(context: vscode.ExtensionContext, excelPath
     outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] 开始Excel转JSON流程: ${excelPath}`);
 
     // 获取配置的输出目录
-    const docsDir = getOutputDirectory(context);
+    const docsDir = getDocsDirectory(context);
     const outputPath = path.join(docsDir, 'parsed_data.json');
     
     // 显示输出目录信息
@@ -388,8 +415,19 @@ function runScript(context: vscode.ExtensionContext, scriptName: string, args: s
         outputChannel.appendLine(`\n--- ${stepName} ---`);
         outputChannel.appendLine(`> ${pythonCmd} "${scriptPath}" ${args.map(a => `"${a}"`).join(' ')}`);
         
+        // 获取当前工作区路径
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+        const workspacePath = workspaceFolder ? workspaceFolder.uri.fsPath : process.cwd();
+        
+        // 设置环境变量，包括工作区路径
+        const env = { 
+            ...process.env, 
+            PYTHONIOENCODING: 'utf-8',
+            IMS_WORKSPACE_PATH: workspacePath  // 新增：传递工作区路径
+        };
+        
         const pythonProcess = spawn(pythonCmd, [scriptPath, ...args], {
-            env: { ...process.env, PYTHONIOENCODING: 'utf-8' }
+            env: env
         });
 
         pythonProcess.stdout.on('data', (data: Buffer) => {
@@ -429,8 +467,16 @@ function runDatabaseTest(context: vscode.ExtensionContext) {
     
     outputChannel.appendLine(`> ${pythonCmd} "${scriptPath}"`);
     
+    // 获取当前工作区路径
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+    const workspacePath = workspaceFolder ? workspaceFolder.uri.fsPath : process.cwd();
+    
     const pythonProcess = spawn(pythonCmd, [scriptPath], {
-        env: { ...process.env, PYTHONIOENCODING: 'utf-8' }
+        env: { 
+            ...process.env, 
+            PYTHONIOENCODING: 'utf-8',
+            IMS_WORKSPACE_PATH: workspacePath
+        }
     });
     
     pythonProcess.stdout.on('data', (data: Buffer) => {
@@ -544,8 +590,16 @@ function handleCrudOperation(context: vscode.ExtensionContext, panel: vscode.Web
     
     const args = ['--table', tableName, '--operation', operation, '--data', JSON.stringify(data)];
     
+    // 获取当前工作区路径
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+    const workspacePath = workspaceFolder ? workspaceFolder.uri.fsPath : process.cwd();
+    
     const pythonProcess = spawn(pythonCmd, [scriptPath, ...args], {
-        env: { ...process.env, PYTHONIOENCODING: 'utf-8' }
+        env: { 
+            ...process.env, 
+            PYTHONIOENCODING: 'utf-8',
+            IMS_WORKSPACE_PATH: workspacePath
+        }
     });
     
     let stdoutData = '';
@@ -620,8 +674,16 @@ function loadTableData(context: vscode.ExtensionContext, panel: vscode.WebviewPa
     // 显示加载状态
     panel.webview.postMessage({ command: 'loading', data: true });
     
+    // 获取当前工作区路径
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+    const workspacePath = workspaceFolder ? workspaceFolder.uri.fsPath : process.cwd();
+    
     const pythonProcess = spawn(pythonCmd, [scriptPath, ...args], {
-        env: { ...process.env, PYTHONIOENCODING: 'utf-8' }
+        env: { 
+            ...process.env, 
+            PYTHONIOENCODING: 'utf-8',
+            IMS_WORKSPACE_PATH: workspacePath
+        }
     });
     
     let stdoutData = '';
@@ -1284,8 +1346,16 @@ function loadBusinessViewData(context: vscode.ExtensionContext, panel: vscode.We
     panel.webview.postMessage({ command: 'loading', data: true });
     
     const pythonCmd = getPythonCommand(context);
+    // 获取当前工作区路径
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+    const workspacePath = workspaceFolder ? workspaceFolder.uri.fsPath : '';
+    
     const pythonProcess = spawn(pythonCmd, [scriptPath, ...args], {
-        env: { ...process.env, PYTHONIOENCODING: 'utf-8' }
+        env: { 
+            ...process.env, 
+            PYTHONIOENCODING: 'utf-8',
+            IMS_WORKSPACE_PATH: workspacePath
+        }
     });
     
     let dataOutput = '';
@@ -1522,8 +1592,16 @@ function runAddMaterialScript(context: vscode.ExtensionContext, materialInfo: an
         
         outputChannel.appendLine(`> ${pythonCmd} "${scriptPath}" '${JSON.stringify(materialInfo)}'`);
         
+        // 获取当前工作区路径
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+        const workspacePath = workspaceFolder ? workspaceFolder.uri.fsPath : '';
+        
         const pythonProcess = spawn(pythonCmd, [scriptPath, JSON.stringify(materialInfo)], {
-            env: { ...process.env, PYTHONIOENCODING: 'utf-8' }
+            env: { 
+                ...process.env, 
+                PYTHONIOENCODING: 'utf-8',
+                IMS_WORKSPACE_PATH: workspacePath
+            }
         });
         
         let stdout = '';
@@ -1591,8 +1669,16 @@ function showInventoryManagementPanel(context: vscode.ExtensionContext) {
                             cancellable: false
                         }, async (progress) => {
                             return new Promise((resolve, reject) => {
+                                // 获取当前工作区路径
+                                const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+                                const workspacePath = workspaceFolder ? workspaceFolder.uri.fsPath : '';
+                                
                                 const pythonProcess = spawn(pythonCommand, [scriptPath, action], {
-                                    env: { ...process.env, PYTHONIOENCODING: 'utf-8' }
+                                    env: { 
+                                        ...process.env, 
+                                        PYTHONIOENCODING: 'utf-8',
+                                        IMS_WORKSPACE_PATH: workspacePath
+                                    }
                                 });
                                 
                                 let stdout = '';

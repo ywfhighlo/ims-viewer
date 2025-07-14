@@ -100,7 +100,6 @@ class AppConfig:
     debug_mode: bool = False
     environment: str = "development"
     version: str = "1.0.0"
-    custom_output_path: Optional[str] = None
 
 
 class ConfigManager:
@@ -151,14 +150,12 @@ class ConfigManager:
             validation=ValidationConfig(**config_dict.get('validation', {})),
             debug_mode=config_dict.get('debug_mode', False),
             environment=config_dict.get('environment', 'development'),
-            version=config_dict.get('version', '1.0.0'),
-            custom_output_path=config_dict.get('customOutputPath')
+            version=config_dict.get('version', '1.0.0')
         )
     
     def _config_to_dict(self, config: AppConfig) -> Dict[str, Any]:
         """将配置对象转换为字典"""
         return {
-            'customOutputPath': config.custom_output_path,
             'database': asdict(config.database),
             'report': asdict(config.report),
             'logging': asdict(config.logging),
@@ -197,8 +194,7 @@ class ConfigManager:
         for key, value in kwargs.items():
             if hasattr(config, key):
                 setattr(config, key, value)
-            elif key == 'customOutputPath':
-                config.custom_output_path = value
+
             else:
                 self.logger.warning(f"未知的配置项: {key}")
         
@@ -314,16 +310,7 @@ class ConfigManager:
         self.logger.info("配置验证通过")
         return True
 
-    def get_custom_output_path(self) -> Optional[str]:
-        """获取自定义输出路径"""
-        return self.get_config().custom_output_path
 
-    def set_custom_output_path(self, path: str):
-        """设置自定义输出路径"""
-        config = self.get_config()
-        config.custom_output_path = path
-        self._config = config
-        self.logger.info("自定义输出路径已更新", custom_output_path=path)
 
 
 # 全局配置管理器实例

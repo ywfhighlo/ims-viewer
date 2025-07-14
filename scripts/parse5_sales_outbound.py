@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+from vscode_config_reader import get_data_directory
 """
 销售出库明细表解析脚本 - 增强版
 集成了增强的日期解析器、日志系统、物料编码匹配和改进的字段映射处理
@@ -104,7 +105,7 @@ def parse_sales_outbound(excel_file_path: str,
             logger.info("数据库连接已关闭")
 
 
-def save_sales_outbound_data(sales_outbound_data: List[Dict[str, Any]], output_file: str = "docs/sales_outbound.json"):
+def save_sales_outbound_data(sales_outbound_data: List[Dict[str, Any]], output_file: str = None):
     """
     保存销售出库明细数据为JSON文件
     
@@ -113,6 +114,9 @@ def save_sales_outbound_data(sales_outbound_data: List[Dict[str, Any]], output_f
         output_file: 输出文件路径
     """
     try:
+        if output_file is None:
+            data_dir = get_data_directory()
+            output_file = os.path.join(data_dir, "sales_outbound.json")
         # 添加元数据
         output_data = {
             "metadata": {
@@ -136,7 +140,8 @@ def save_sales_outbound_data(sales_outbound_data: List[Dict[str, Any]], output_f
 def main():
     """主函数 - 测试"""
     logger = EnhancedLogger("Parse_Sales_Outbound_Test", "DEBUG")
-    excel_file = "docs/imsviewer.xlsx"
+    data_dir = get_data_directory()
+    excel_file = os.path.join(data_dir, "imsviewer.xlsx")
     
     logger.info(f"--- 开始销售出库明细表解析测试 ---")
     if not os.path.exists(excel_file):

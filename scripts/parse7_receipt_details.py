@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+from vscode_config_reader import get_data_directory
 """
 收款明细表解析脚本
 使用统一的字段映射词典进行数据转换
@@ -37,11 +38,14 @@ def parse_receipt_details(excel_file_path: str, sheet_name: str = "收款明细�
         print(f"解析收款明细时出错: {str(e)}")
         raise
 
-def save_receipt_details_data(receipt_details_data: List[Dict[str, Any]], output_file: str = "docs/receipt_details.json"):
+def save_receipt_details_data(receipt_details_data: List[Dict[str, Any]], output_file: str = None):
     """
     保存收款明细数据为JSON文件
     """
     try:
+        if output_file is None:
+            data_dir = get_data_directory()
+            output_file = os.path.join(data_dir, "receipt_details.json")
         output_data = {
             "metadata": {
                 "table_name": "receipt_details",
@@ -65,7 +69,8 @@ def save_receipt_details_data(receipt_details_data: List[Dict[str, Any]], output
 
 def main():
     """主函数"""
-    excel_file = "docs/imsviewer.xlsx"
+    data_dir = get_data_directory()
+    excel_file = os.path.join(data_dir, "imsviewer.xlsx")
     if not os.path.exists(excel_file):
         print(f"Excel文件不存在: {excel_file}")
         return

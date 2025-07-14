@@ -10,6 +10,7 @@ import json
 import os
 from typing import Dict, List, Any
 from field_mapping_utils import field_mapper, translate_dict_to_english
+from vscode_config_reader import get_data_directory
 
 def parse_supplier_info(excel_file_path: str, sheet_name: str = "供应商信息表") -> List[Dict[str, Any]]:
     """
@@ -135,7 +136,7 @@ def validate_supplier_data(suppliers_data: List[Dict[str, Any]]) -> Dict[str, An
     
     return validation_result
 
-def save_suppliers_data(suppliers_data: List[Dict[str, Any]], output_file: str = "docs/suppliers.json"):
+def save_suppliers_data(suppliers_data: List[Dict[str, Any]], output_file: str = None):
     """
     保存解析后的供应商数据
     
@@ -144,6 +145,9 @@ def save_suppliers_data(suppliers_data: List[Dict[str, Any]], output_file: str =
         output_file: 输出文件路径
     """
     try:
+        if output_file is None:
+            data_dir = get_data_directory()
+            output_file = os.path.join(data_dir, "suppliers.json")
         # 添加字段映射信息到输出
         output_data = {
             "metadata": {
@@ -169,7 +173,8 @@ def save_suppliers_data(suppliers_data: List[Dict[str, Any]], output_file: str =
 def main():
     """主函数"""
     # 配置文件路径（相对于项目根目录）
-    excel_file = "docs/imsviewer.xlsx"  # 根据实际文件路径调整
+    data_dir = get_data_directory()
+    excel_file = os.path.join(data_dir, "imsviewer.xlsx")  # 根据实际文件路径调整
     
     if not os.path.exists(excel_file):
         print(f"Excel文件不存在: {excel_file}")

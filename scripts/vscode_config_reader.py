@@ -30,14 +30,20 @@ class IDEConfigReader:
     
     def _detect_workspace_path(self) -> str:
         """自动检测工作区路径"""
-        # 从当前脚本路径向上查找
+        # 1. 优先使用环境变量中的工作区路径（由VSCode插件传递）
+        workspace_from_env = os.environ.get('IMS_WORKSPACE_PATH')
+        if workspace_from_env and os.path.exists(workspace_from_env):
+            print(f"使用环境变量指定的工作区路径: {workspace_from_env}")
+            return workspace_from_env
+        
+        # 2. 从当前脚本路径向上查找
         current_path = Path(__file__).parent.parent
         
         # 检查是否存在package.json（扩展标识）
         if (current_path / 'package.json').exists():
             return str(current_path)
         
-        # 如果找不到，返回当前目录
+        # 3. 如果找不到，返回当前目录
         return os.getcwd()
     
     def _detect_ide_and_extension_path(self) -> tuple[str, str]:
@@ -205,53 +211,40 @@ class IDEConfigReader:
         return self.get_setting('imsViewer.customOutputPath', '')
     
     def get_data_directory(self) -> str:
-        """
-        根据输出模式获取数据目录路径
-        优先级：1. 设置中的自定义目录 2. 工作区docs目录 3. 扩展目录
-        
-        Returns:
-            数据目录的绝对路径
-        """
-        output_mode = self.get_output_mode()
-        
-        # 1. 优先使用设置中的自定义目录（custom模式或设置了customOutputPath）
-        custom_path = self.get_custom_output_path()
-        if custom_path and os.path.exists(custom_path):
-            print(f"使用设置中的自定义目录: {custom_path}")
-            return custom_path
-        elif custom_path:
-            print(f"警告: 设置中的自定义路径不存在: {custom_path}")
-        
-        # 2. 使用工作区的docs目录
-        workspace_docs_path = os.path.join(self.workspace_path, 'docs')
-        if os.path.exists(workspace_docs_path):
-            # 检查是否有数据文件（如Excel文件或JSON文件）
-            try:
-                excel_file = os.path.join(workspace_docs_path, 'imsviewer.xlsx')
-                json_files = [f for f in os.listdir(workspace_docs_path) if f.endswith('.json')]
-                if os.path.exists(excel_file) or json_files:
-                    print(f"使用工作区数据目录: {workspace_docs_path}")
-                    return workspace_docs_path
-            except Exception as e:
-                print(f"检查工作区目录时出错: {e}")
-        
-        # 3. 最后尝试扩展目录
-        extension_data_dir = self._get_data_directory_from_extension()
-        if extension_data_dir:
-            return extension_data_dir
-        
-        # 4. 特殊模式处理
-        if output_mode == 'temp':
-            # 使用系统临时目录
-            temp_dir = os.path.join(tempfile.gettempdir(), 'ims-viewer-data')
-            os.makedirs(temp_dir, exist_ok=True)
-            print(f"使用临时目录: {temp_dir}")
-            return temp_dir
-        
-        # 5. 最终回退：创建工作区docs目录
-        os.makedirs(workspace_docs_path, exist_ok=True)
-        print(f"创建并使用工作区数据目录: {workspace_docs_path}")
-        return workspace_docs_path
+        """获取数据目录的统一函数，具有正确的优先级"""
+        # 1. 优先从 VSCode 设置中获取 `docsPath`
+        settings_path = self.get_setting('imsViewer.docsPath')
+        if settings_path and os.path.isabs(settings_path) and os.path.exists(settings_path):
+            print(f"使用来自设置的 docs 目录: {settings_path}")
+            return settings_path
+
+        # 2. 其次，检查工作区（开发目录）下的 `docs` 目录
+        workspace_path = self.workspace_path
+        if workspace_path:
+            workspace_docs_path = os.path.join(workspace_path, 'docs')
+            if os.path.exists(workspace_docs_path):
+                print(f"使用来自工作区的 docs 目录: {workspace_docs_path}")
+                return workspace_docs_path
+
+        # 3. 最后，回退到扩展目录下的 `docs` 目录
+        ext_docs_path = self._get_data_directory_from_extension()
+        if ext_docs_path:
+            print(f"使用来自扩展的 docs 目录: {ext_docs_path}")
+            return ext_docs_path
+
+        # 最终回退：如果上述都失败，则在扩展目录中创建 `docs` 目录
+        _, extension_path = self._detect_ide_and_extension_path()
+        if extension_path:
+            fallback_path = os.path.join(extension_path, 'docs')
+            os.makedirs(fallback_path, exist_ok=True)
+            print(f"回退：在扩展目录中创建 docs 目录: {fallback_path}")
+            return fallback_path
+
+        # 如果连扩展目录都找不到，则使用临时目录
+        temp_dir = os.path.join(tempfile.gettempdir(), 'ims-viewer-data')
+        os.makedirs(temp_dir, exist_ok=True)
+        print(f"最终回退到临时目录: {temp_dir}")
+        return temp_dir
     
     def get_excel_file_path(self) -> str:
         """获取Excel文件路径"""

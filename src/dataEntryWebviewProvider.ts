@@ -82,8 +82,16 @@ export class DataEntryWebviewProvider {
                 args.push(JSON.stringify(data));
             }
 
+            // 获取当前工作区路径
+            const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+            const workspacePath = workspaceFolder ? workspaceFolder.uri.fsPath : '';
+            
             const pythonProcess = spawn(pythonCmd, args, {
-                env: { ...process.env, PYTHONIOENCODING: 'utf-8' }
+                env: { 
+                    ...process.env, 
+                    PYTHONIOENCODING: 'utf-8',
+                    IMS_WORKSPACE_PATH: workspacePath
+                }
             });
 
             let stdoutData = '';

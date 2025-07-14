@@ -11,7 +11,6 @@ from datetime import datetime
 from typing import Dict, List, Any, Optional
 from pymongo import MongoClient
 from vscode_config_reader import get_vscode_config, get_data_directory, get_mongo_config
-from config_manager import get_config_manager
 
 class StandardCodeImporter:
     """标准编码数据导入器"""
@@ -20,15 +19,9 @@ class StandardCodeImporter:
         """初始化导入器"""
         # 获取VS Code配置
         self.vscode_config = get_vscode_config()
-        # 优先使用 config.json 的 customOutputPath
-        config_mgr = get_config_manager()
-        custom_path = config_mgr.get_custom_output_path()
-        if custom_path and os.path.exists(custom_path):
-            self.data_directory = custom_path
-            print(f"使用自定义输出路径 (customOutputPath): {self.data_directory}")
-        else:
-            self.data_directory = get_data_directory()
-            print(f"使用默认数据目录: {self.data_directory}")
+        # 使用动态获取的数据目录
+        self.data_directory = get_data_directory()
+        print(f"使用数据目录: {self.data_directory}")
         
         # 获取MongoDB配置
         mongo_config = get_mongo_config()
