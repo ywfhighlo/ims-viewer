@@ -199,7 +199,7 @@ def main():
         # 生成库存盘点报表
         report_data = safe_execute(
             generate_inventory_report,
-            args=(start_date, end_date, product_name),
+            (start_date, end_date, product_name),
             default_return=[],
             context="生成库存盘点报表"
         )

@@ -52,15 +52,15 @@ def generate_sales_report(start_date: Optional[str] = None,
                 date_query['$gte'] = start_date
             if end_date:
                 date_query['$lte'] = end_date
-            query['日期'] = date_query
+            query['outbound_date'] = date_query
             
         # 客户名称筛选
         if customer_name:
-            query['客户单位'] = {'$regex': customer_name, '$options': 'i'}
+            query['customer_name'] = {'$regex': customer_name, '$options': 'i'}
             
         # 产品名称筛选
         if product_name:
-            query['出库物料名称'] = {'$regex': product_name, '$options': 'i'}
+            query['material_name'] = {'$regex': product_name, '$options': 'i'}
             
         logger.info(f"查询条件: {query}")
         
@@ -73,8 +73,8 @@ def generate_sales_report(start_date: Optional[str] = None,
         
         for sale in sales_data:
             try:
-                product_code = sale.get('出库物料编码', '')
-                product_name_val = sale.get('出库物料名称', '')
+                product_code = sale.get('material_code', '')
+                product_name_val = sale.get('material_name', '')
                 
                 if not product_code and not product_name_val:
                     continue
@@ -85,8 +85,8 @@ def generate_sales_report(start_date: Optional[str] = None,
                     product_summary[key] = {
                         'product_code': product_code,
                         'product_name': product_name_val,
-                        'product_model': sale.get('出库物料型号', ''),
-                        'unit': sale.get('单位', ''),
+                        'product_model': sale.get('specification', ''),
+                        'unit': sale.get('unit', ''),
                         'total_quantity': 0,
                         'total_amount': 0,
                         'sales_count': 0,
@@ -96,20 +96,20 @@ def generate_sales_report(start_date: Optional[str] = None,
                     }
                 
                 # 累计数量和金额
-                quantity = float(sale.get('数量', 0) or 0)
-                amount = float(sale.get('金额', 0) or 0)
+                quantity = float(sale.get('quantity', 0) or 0)
+                amount = float(sale.get('outbound_amount', 0) or 0)
                 
                 product_summary[key]['total_quantity'] += quantity
                 product_summary[key]['total_amount'] += amount
                 product_summary[key]['sales_count'] += 1
                 
                 # 记录客户
-                customer = sale.get('客户单位', '')
+                customer = sale.get('customer_name', '')
                 if customer:
                     product_summary[key]['customers'].add(customer)
                 
                 # 更新最新销售日期
-                sale_date = sale.get('日期', '')
+                sale_date = sale.get('outbound_date', '')
                 if sale_date:
                     if (not product_summary[key]['latest_sale_date'] or 
                         sale_date > product_summary[key]['latest_sale_date']):
@@ -270,7 +270,7 @@ def main():
         # 生成销售统计报表
         report_data = safe_execute(
             generate_sales_report,
-            args=(start_date, end_date, customer_name, product_name),
+            start_date, end_date, customer_name, product_name,
             default_return=[],
             context="生成销售统计报表"
         )
@@ -284,7 +284,7 @@ def main():
         if output_format == 'table':
             formatted_output = safe_execute(
                 format_table_output,
-                args=(report_data,),
+                report_data,
                 default_return="报表格式化失败",
                 context="格式化表格输出"
             )

@@ -49,15 +49,15 @@ def generate_purchase_report(start_date: Optional[str] = None,
                 date_query['$gte'] = start_date
             if end_date:
                 date_query['$lte'] = end_date
-            query['日期'] = date_query
+            query['inbound_date'] = date_query
             
         # 供应商名称筛选
         if supplier_name:
-            query['供货单位'] = {'$regex': supplier_name, '$options': 'i'}
+            query['supplier_name'] = {'$regex': supplier_name, '$options': 'i'}
             
         # 产品名称筛选
         if product_name:
-            query['进货物料名称'] = {'$regex': product_name, '$options': 'i'}
+            query['material_name'] = {'$regex': product_name, '$options': 'i'}
             
         logger.info(f"查询条件: {query}")
         
@@ -70,8 +70,8 @@ def generate_purchase_report(start_date: Optional[str] = None,
         
         for purchase in purchase_data:
             try:
-                product_code = purchase.get('进货物料编码', '')
-                product_name_val = purchase.get('进货物料名称', '')
+                product_code = purchase.get('material_code', '')
+                product_name_val = purchase.get('material_name', '')
                 
                 if not product_code and not product_name_val:
                     continue
@@ -82,8 +82,8 @@ def generate_purchase_report(start_date: Optional[str] = None,
                     product_summary[key] = {
                         'product_code': product_code,
                         'product_name': product_name_val,
-                        'product_model': purchase.get('进货物料型号', ''),
-                        'unit': purchase.get('单位', ''),
+                        'product_model': purchase.get('specification', ''),
+                        'unit': purchase.get('unit', ''),
                         'total_quantity': 0,
                         'total_amount': 0,
                         'purchase_count': 0,
@@ -95,16 +95,16 @@ def generate_purchase_report(start_date: Optional[str] = None,
                     }
                 
                 # 累计数量和金额
-                quantity = float(purchase.get('数量', 0) or 0)
-                amount = float(purchase.get('金额', 0) or 0)
-                unit_price = float(purchase.get('单价', 0) or 0)
+                quantity = float(purchase.get('quantity', 0) or 0)
+                amount = float(purchase.get('amount', 0) or 0)
+                unit_price = float(purchase.get('purchase_unit_price', 0) or 0)
                 
                 product_summary[key]['total_quantity'] += quantity
                 product_summary[key]['total_amount'] += amount
                 product_summary[key]['purchase_count'] += 1
                 
                 # 记录供应商
-                supplier = purchase.get('供货单位', '')
+                supplier = purchase.get('supplier_name', '')
                 if supplier:
                     product_summary[key]['suppliers'].add(supplier)
                 
@@ -114,7 +114,7 @@ def generate_purchase_report(start_date: Optional[str] = None,
                     product_summary[key]['max_unit_price'] = max(product_summary[key]['max_unit_price'], unit_price)
                 
                 # 更新最新采购日期
-                purchase_date = purchase.get('日期', '')
+                purchase_date = purchase.get('inbound_date', '')
                 if purchase_date:
                     if (not product_summary[key]['latest_purchase_date'] or 
                         purchase_date > product_summary[key]['latest_purchase_date']):
