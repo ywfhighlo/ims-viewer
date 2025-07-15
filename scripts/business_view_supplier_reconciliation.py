@@ -48,36 +48,16 @@ def generate_supplier_reconciliation(start_date: Optional[str] = None,
         if end_date:
             date_filter['$lte'] = end_date
         
-        # 构建供应商过滤条件
-        supplier_filter = {}
-        if supplier_name:
-            supplier_filter = {'supplier_name': supplier_name}
-        
-        # 1. 获取所有供应商基础信息
-        suppliers_collection = db['suppliers']
-        suppliers_query = supplier_filter.copy()
-        suppliers = list(suppliers_collection.find(suppliers_query, {'_id': 0}))
-        logger.info(f"找到 {len(suppliers)} 个供应商")
-        
-        # 提取供应商名称列表
-        supplier_names = [supplier.get('supplier_name', '') for supplier in suppliers if supplier.get('supplier_name')]
-        
-        if not supplier_names:
-            logger.info("没有找到有效的供应商名称")
-            return []
-        
-        # 2. 使用聚合查询批量获取采购数据
-        purchase_pipeline = [
-            {
-                '$match': {
-                    'supplier_name': {'$in': supplier_names}
-                }
-            }
-        ]
+        # 1. 构建采购数据聚合管道
+        purchase_pipeline = [{'$match': {}}]
         
         # 添加日期过滤
         if date_filter:
             purchase_pipeline[0]['$match']['inbound_date'] = date_filter
+        
+        # 添加供应商过滤
+        if supplier_name:
+            purchase_pipeline[0]['$match']['supplier_name'] = supplier_name
         
         # 聚合采购数据
         purchase_pipeline.extend([
@@ -95,18 +75,16 @@ def generate_supplier_reconciliation(start_date: Optional[str] = None,
         purchase_aggregated = list(purchase_inbound.aggregate(purchase_pipeline))
         purchase_dict = {item['_id']: item for item in purchase_aggregated}
         
-        # 3. 使用聚合查询批量获取付款数据
-        payment_pipeline = [
-            {
-                '$match': {
-                    'supplier_name': {'$in': supplier_names}
-                }
-            }
-        ]
+        # 2. 构建付款数据聚合管道
+        payment_pipeline = [{'$match': {}}]
         
         # 添加日期过滤
         if date_filter:
             payment_pipeline[0]['$match']['payment_date'] = date_filter
+        
+        # 添加供应商过滤
+        if supplier_name:
+            payment_pipeline[0]['$match']['supplier_name'] = supplier_name
         
         # 聚合付款数据
         payment_pipeline.extend([
@@ -124,15 +102,30 @@ def generate_supplier_reconciliation(start_date: Optional[str] = None,
         payment_aggregated = list(payment_details.aggregate(payment_pipeline))
         payment_dict = {item['_id']: item for item in payment_aggregated}
         
-        logger.info(f"聚合查询完成: 采购数据 {len(purchase_dict)} 条, 付款数据 {len(payment_dict)} 条")
+        # 3. 获取所有涉及的供应商名称
+        all_supplier_names = set(purchase_dict.keys()) | set(payment_dict.keys())
         
-        # 4. 构建对账表数据
+        if not all_supplier_names:
+            logger.info("没有找到相关的采购或付款数据")
+            return []
+        
+        logger.info(f"聚合查询完成: 采购数据 {len(purchase_dict)} 条, 付款数据 {len(payment_dict)} 条, 涉及供应商 {len(all_supplier_names)} 个")
+        
+        # 4. 批量获取供应商基础信息（仅查询需要的供应商）
+        suppliers_collection = db['suppliers']
+        suppliers_query = {'supplier_name': {'$in': list(all_supplier_names)}}
+        suppliers = list(suppliers_collection.find(suppliers_query, {'_id': 0}))
+        suppliers_dict = {supplier.get('supplier_name'): supplier for supplier in suppliers if supplier.get('supplier_name')}
+        
+        # 5. 构建对账表数据
         reconciliation_data = []
         
-        for supplier in suppliers:
-            supplier_name_key = supplier.get('supplier_name', '')
+        for supplier_name_key in all_supplier_names:
             if not supplier_name_key:
                 continue
+            
+            # 获取供应商基础信息
+            supplier_info = suppliers_dict.get(supplier_name_key, {})
             
             # 获取聚合后的采购数据
             purchase_data = purchase_dict.get(supplier_name_key, {})
@@ -166,9 +159,9 @@ def generate_supplier_reconciliation(start_date: Optional[str] = None,
             
             reconciliation_record = {
                 'supplier_name': supplier_name_key,
-                'supplier_credit_code': supplier.get('credit_code', ''),
-                'supplier_contact': supplier.get('contact_person', ''),
-                'supplier_phone': supplier.get('phone', ''),
+                'supplier_credit_code': supplier_info.get('credit_code', ''),
+                'supplier_contact': supplier_info.get('contact_person', ''),
+                'supplier_phone': supplier_info.get('phone', ''),
                 'total_purchase_amount': round(total_purchase_amount, 2),
                 'total_payment_amount': round(total_payment_amount, 2),
                 'balance': round(balance, 2),
