@@ -27,7 +27,7 @@ def generate_customer_reconciliation(
     logger: Optional[EnhancedLogger] = None
 ) -> List[Dict[str, Any]]:
     """
-    生成客户对账单
+    生成客户对账单（优化版本 - 使用聚合查询提升性能）
     
     Args:
         start_date: 开始日期 (YYYY-MM-DD)
@@ -42,7 +42,7 @@ def generate_customer_reconciliation(
         logger = EnhancedLogger("customer_reconciliation")
     
     try:
-        logger.info("开始生成客户对账单")
+        logger.info("开始生成客户对账单（优化版本）")
         logger.info(f"查询参数: 开始日期={start_date}, 结束日期={end_date}, 客户名称={customer_name}")
         
         # 获取数据库连接
@@ -66,85 +66,110 @@ def generate_customer_reconciliation(
         customers = list(customers_collection.find(customers_query, {'_id': 0}))
         logger.info(f"找到 {len(customers)} 个客户")
         
+        # 提取客户名称列表
+        customer_names = [customer.get('customer_name', '') for customer in customers if customer.get('customer_name')]
+        
+        if not customer_names:
+            logger.info("没有找到有效的客户名称")
+            return []
+        
+        # 2. 使用聚合查询批量获取销售数据
+        sales_pipeline = [
+            {
+                '$match': {
+                    'customer_name': {'$in': customer_names}
+                }
+            }
+        ]
+        
+        # 添加日期过滤
+        if date_filter:
+            sales_pipeline[0]['$match']['outbound_date'] = date_filter
+        
+        # 聚合销售数据
+        sales_pipeline.extend([
+            {
+                '$group': {
+                    '_id': '$customer_name',
+                    'total_sales_amount': {'$sum': '$outbound_amount'},
+                    'sales_count': {'$sum': 1},
+                    'latest_sales_date': {'$max': '$outbound_date'}
+                }
+            }
+        ])
+        
+        sales_outbound = db['sales_outbound']
+        sales_aggregated = list(sales_outbound.aggregate(sales_pipeline))
+        sales_dict = {item['_id']: item for item in sales_aggregated}
+        
+        # 3. 使用聚合查询批量获取收款数据
+        receipt_pipeline = [
+            {
+                '$match': {
+                    'customer_name': {'$in': customer_names}
+                }
+            }
+        ]
+        
+        # 添加日期过滤
+        if date_filter:
+            receipt_pipeline[0]['$match']['receipt_date'] = date_filter
+        
+        # 聚合收款数据
+        receipt_pipeline.extend([
+            {
+                '$group': {
+                    '_id': '$customer_name',
+                    'total_receipt_amount': {'$sum': '$amount'},
+                    'receipt_count': {'$sum': 1},
+                    'latest_receipt_date': {'$max': '$receipt_date'}
+                }
+            }
+        ])
+        
+        receipt_details = db['receipt_details']
+        receipt_aggregated = list(receipt_details.aggregate(receipt_pipeline))
+        receipt_dict = {item['_id']: item for item in receipt_aggregated}
+        
+        logger.info(f"聚合查询完成: 销售数据 {len(sales_dict)} 条, 收款数据 {len(receipt_dict)} 条")
+        
+        # 4. 构建对账单数据
         reconciliation_data = []
         
         for customer in customers:
             customer_name_key = customer.get('customer_name', '')
             if not customer_name_key:
                 continue
-                
-            logger.info(f"处理客户: {customer_name_key}")
             
-            # 2. 查询该客户的销售出库记录
-            sales_filter = {'customer_name': customer_name_key}
-            if date_filter:
-                sales_filter['outbound_date'] = date_filter
+            # 获取聚合后的销售数据
+            sales_data = sales_dict.get(customer_name_key, {})
+            total_sales_amount = sales_data.get('total_sales_amount', 0) or 0
+            sales_count = sales_data.get('sales_count', 0) or 0
+            latest_sales_date = sales_data.get('latest_sales_date')
             
-            sales_outbound = db['sales_outbound']
-            sales_records = list(sales_outbound.find(sales_filter, {'_id': 0}))
+            # 获取聚合后的收款数据
+            receipt_data = receipt_dict.get(customer_name_key, {})
+            total_receipt_amount = receipt_data.get('total_receipt_amount', 0) or 0
+            receipt_count = receipt_data.get('receipt_count', 0) or 0
+            latest_receipt_date = receipt_data.get('latest_receipt_date')
             
-            # 计算销售总金额
-            total_sales_amount = 0
-            sales_count = 0
-            for record in sales_records:
-                amount = record.get('outbound_amount', 0)
-                if isinstance(amount, (int, float)):
-                    total_sales_amount += amount
-                    sales_count += 1
-            
-            # 3. 查询该客户的收款记录
-            receipt_filter = {'customer_name': customer_name_key}
-            if date_filter:
-                receipt_filter['receipt_date'] = date_filter
-            
-            receipt_details = db['receipt_details']
-            receipt_records = list(receipt_details.find(receipt_filter, {'_id': 0}))
-            
-            # 计算收款总金额
-            total_receipt_amount = 0
-            receipt_count = 0
-            for record in receipt_records:
-                amount = record.get('amount', 0)
-                if isinstance(amount, (int, float)):
-                    total_receipt_amount += amount
-                    receipt_count += 1
-            
-            # 4. 计算应收账款余额
+            # 计算应收账款余额
             balance = total_sales_amount - total_receipt_amount
             
-            # 5. 获取最近交易日期
-            latest_sales_date = None
-            latest_receipt_date = None
-            
-            if sales_records:
-                latest_sales = max(sales_records, 
-                                 key=lambda x: x.get('outbound_date', ''), 
-                                 default=None)
-                if latest_sales:
-                    latest_sales_date = latest_sales.get('outbound_date')
-            
-            if receipt_records:
-                latest_receipt = max(receipt_records, 
-                                   key=lambda x: x.get('receipt_date', ''), 
-                                   default=None)
-                if latest_receipt:
-                    latest_receipt_date = latest_receipt.get('receipt_date')
-            
-            # 6. 构建对账记录
             # 处理日期字段，确保可以JSON序列化
             latest_sales_str = None
             if latest_sales_date:
                 if isinstance(latest_sales_date, datetime):
                     latest_sales_str = latest_sales_date.strftime('%Y-%m-%d')
                 else:
-                    latest_sales_str = str(latest_sales_date)[:10]  # 取前10位日期部分
+                    latest_sales_str = str(latest_sales_date)[:10]
             
             latest_receipt_str = None
             if latest_receipt_date:
                 if isinstance(latest_receipt_date, datetime):
                     latest_receipt_str = latest_receipt_date.strftime('%Y-%m-%d')
                 else:
-                    latest_receipt_str = str(latest_receipt_date)[:10]  # 取前10位日期部分
+                    latest_receipt_str = str(latest_receipt_date)[:10]
             
             reconciliation_record = {
                 'customer_name': customer_name_key,
@@ -164,7 +189,6 @@ def generate_customer_reconciliation(
             }
             
             reconciliation_data.append(reconciliation_record)
-            logger.info(f"客户 {customer_name_key}: 销售金额={total_sales_amount}, 收款金额={total_receipt_amount}, 余额={balance}")
         
         # 按余额降序排序
         reconciliation_data.sort(key=lambda x: x['balance'], reverse=True)

@@ -23,7 +23,7 @@ def generate_sales_report(start_date: Optional[str] = None,
                          customer_name: Optional[str] = None,
                          product_name: Optional[str] = None) -> List[Dict[str, Any]]:
     """
-    生成销售统计报表
+    生成销售统计报表（优化版本 - 使用聚合查询提升性能）
     
     Args:
         start_date: 开始日期
@@ -38,12 +38,13 @@ def generate_sales_report(start_date: Optional[str] = None,
     
     try:
         db = get_database_connection()
+        logger.info("开始生成销售统计报表（优化版本）")
         
-        # 获取销售出库数据
-        sales_collection = db['sales_outbound']
+        # 构建聚合管道
+        pipeline = []
         
-        # 构建查询条件
-        query = {}
+        # 1. 匹配阶段 - 构建过滤条件
+        match_conditions = {}
         
         # 日期范围筛选
         if start_date or end_date:
@@ -52,110 +53,81 @@ def generate_sales_report(start_date: Optional[str] = None,
                 date_query['$gte'] = start_date
             if end_date:
                 date_query['$lte'] = end_date
-            query['outbound_date'] = date_query
+            match_conditions['outbound_date'] = date_query
             
         # 客户名称筛选
         if customer_name:
-            query['customer_name'] = {'$regex': customer_name, '$options': 'i'}
+            match_conditions['customer_name'] = {'$regex': customer_name, '$options': 'i'}
             
         # 产品名称筛选
         if product_name:
-            query['material_name'] = {'$regex': product_name, '$options': 'i'}
+            match_conditions['material_name'] = {'$regex': product_name, '$options': 'i'}
             
-        logger.info(f"查询条件: {query}")
-        
-        # 查询销售数据
-        sales_data = list(sales_collection.find(query, {'_id': 0}))
-        logger.info(f"查询到 {len(sales_data)} 条销售记录")
-        
-        # 按产品汇总销售数据
-        product_summary = {}
-        
-        for sale in sales_data:
-            try:
-                product_code = sale.get('material_code', '')
-                product_name_val = sale.get('material_name', '')
-                
-                if not product_code and not product_name_val:
-                    continue
-                    
-                key = f"{product_code}_{product_name_val}"
-                
-                if key not in product_summary:
-                    product_summary[key] = {
-                        'product_code': product_code,
-                        'product_name': product_name_val,
-                        'product_model': sale.get('specification', ''),
-                        'unit': sale.get('unit', ''),
-                        'total_quantity': 0,
-                        'total_amount': 0,
-                        'sales_count': 0,
-                        'customers': set(),
-                        'latest_sale_date': None,
-                        'avg_unit_price': 0
-                    }
-                
-                # 累计数量和金额
-                quantity = float(sale.get('quantity', 0) or 0)
-                amount = float(sale.get('outbound_amount', 0) or 0)
-                
-                product_summary[key]['total_quantity'] += quantity
-                product_summary[key]['total_amount'] += amount
-                product_summary[key]['sales_count'] += 1
-                
-                # 记录客户
-                customer = sale.get('customer_name', '')
-                if customer:
-                    product_summary[key]['customers'].add(customer)
-                
-                # 更新最新销售日期
-                sale_date = sale.get('outbound_date', '')
-                if sale_date:
-                    if (not product_summary[key]['latest_sale_date'] or 
-                        sale_date > product_summary[key]['latest_sale_date']):
-                        product_summary[key]['latest_sale_date'] = sale_date
-                        
-            except (ValueError, TypeError) as e:
-                logger.warning(f"处理销售记录时出错: {e}, 记录: {sale}")
-                continue
-        
-        # 转换为报表格式
-        report_data = []
-        for key, summary in product_summary.items():
-            # 计算平均单价
-            avg_price = (summary['total_amount'] / summary['total_quantity'] 
-                        if summary['total_quantity'] > 0 else 0)
+        if match_conditions:
+            pipeline.append({'$match': match_conditions})
             
-            # 销售趋势分析（简单的基于销售次数）
-            if summary['sales_count'] >= 10:
-                sales_trend = "热销"
-            elif summary['sales_count'] >= 5:
-                sales_trend = "正常"
-            else:
-                sales_trend = "滞销"
-            
-            report_item = {
-                'product_code': summary['product_code'],
-                'product_name': summary['product_name'],
-                'product_model': summary['product_model'],
-                'unit': summary['unit'],
-                'total_quantity': summary['total_quantity'],
-                'total_amount': summary['total_amount'],
-                'sales_count': summary['sales_count'],
-                'customer_count': len(summary['customers']),
-                'avg_unit_price': avg_price,
-                'latest_sale_date': summary['latest_sale_date'],
-                'sales_trend': sales_trend,
-                'generated_date': datetime.now().isoformat()
+        logger.info(f"查询条件: {match_conditions}")
+        
+        # 2. 分组聚合阶段
+        pipeline.append({
+            '$group': {
+                '_id': {
+                    'material_code': '$material_code',
+                    'material_name': '$material_name'
+                },
+                'product_model': {'$first': '$specification'},
+                'unit': {'$first': '$unit'},
+                'total_quantity': {'$sum': '$quantity'},
+                'total_amount': {'$sum': '$outbound_amount'},
+                'sales_count': {'$sum': 1},
+                'customers': {'$addToSet': '$customer_name'},
+                'latest_sale_date': {'$max': '$outbound_date'}
             }
-            
-            report_data.append(report_item)
+        })
         
-        # 按销售金额降序排序
-        report_data.sort(key=lambda x: x['total_amount'], reverse=True)
+        # 3. 投影阶段 - 计算衍生字段
+        pipeline.append({
+            '$project': {
+                'product_code': '$_id.material_code',
+                'product_name': '$_id.material_name',
+                'product_model': 1,
+                'unit': 1,
+                'total_quantity': 1,
+                'total_amount': 1,
+                'sales_count': 1,
+                'customer_count': {'$size': '$customers'},
+                'latest_sale_date': 1,
+                'avg_unit_price': {
+                    '$cond': {
+                        'if': {'$gt': ['$total_quantity', 0]},
+                        'then': {'$divide': ['$total_amount', '$total_quantity']},
+                        'else': 0
+                    }
+                },
+                'sales_trend': {
+                    '$switch': {
+                        'branches': [
+                            {'case': {'$gte': ['$sales_count', 10]}, 'then': '热销'},
+                            {'case': {'$gte': ['$sales_count', 5]}, 'then': '正常'}
+                        ],
+                        'default': '滞销'
+                    }
+                },
+                'generated_date': {'$literal': datetime.now().isoformat()},
+                '_id': 0
+            }
+        })
         
-        logger.info(f"生成销售统计报表完成，共 {len(report_data)} 个产品")
+        # 4. 排序阶段 - 按销售金额降序
+        pipeline.append({'$sort': {'total_amount': -1}})
+        
+        # 执行聚合查询
+        sales_collection = db['sales_outbound']
+        report_data = list(sales_collection.aggregate(pipeline))
+        
+        logger.info(f"聚合查询完成，生成销售统计报表，共 {len(report_data)} 个产品")
         return report_data
+
         
     except Exception as e:
         logger.error(f"生成销售统计报表失败: {str(e)}")

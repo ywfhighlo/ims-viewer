@@ -19,7 +19,7 @@ def generate_receivables_report(start_date: Optional[str] = None,
                               end_date: Optional[str] = None,
                               customer_name: Optional[str] = None) -> List[Dict[str, Any]]:
     """
-    生成应收账款统计报表
+    生成应收账款统计报表（优化版本 - 使用聚合查询提升性能）
     
     Args:
         start_date: 开始日期
@@ -33,14 +33,18 @@ def generate_receivables_report(start_date: Optional[str] = None,
     
     try:
         db = get_database_connection()
+        logger.info("开始生成应收账款报表（优化版本）")
         
         # 获取销售出库数据
         sales_collection = db['sales_outbound']
         # 获取收款记录数据
         receipt_collection = db['receipt_details']
         
-        # 构建查询条件
-        query = {}
+        # 构建销售数据聚合管道
+        sales_pipeline = []
+        
+        # 1. 销售数据匹配阶段
+        sales_match_conditions = {}
         
         # 日期范围筛选
         if start_date or end_date:
@@ -49,94 +53,88 @@ def generate_receivables_report(start_date: Optional[str] = None,
                 date_query['$gte'] = start_date
             if end_date:
                 date_query['$lte'] = end_date
-            query['日期'] = date_query
+            sales_match_conditions['日期'] = date_query
             
         # 客户名称筛选
         if customer_name:
-            query['客户单位'] = {'$regex': customer_name, '$options': 'i'}
+            sales_match_conditions['客户单位'] = {'$regex': customer_name, '$options': 'i'}
             
-        logger.info(f"查询条件: {query}")
+        if sales_match_conditions:
+            sales_pipeline.append({'$match': sales_match_conditions})
+            
+        # 2. 销售数据分组聚合
+        sales_pipeline.append({
+            '$group': {
+                '_id': '$客户单位',
+                'total_sales': {'$sum': '$金额'},
+                'sales_count': {'$sum': 1},
+                'latest_sale_date': {'$max': '$日期'},
+                'earliest_sale_date': {'$min': '$日期'}
+            }
+        })
         
-        # 查询销售数据
-        sales_query = query.copy()
-        if '客户单位' in sales_query:
-            # 销售表中的字段名可能不同
-            sales_query['客户单位'] = query['客户单位']
+        # 构建收款数据聚合管道
+        receipt_pipeline = []
         
-        sales_data = list(sales_collection.find(sales_query, {'_id': 0}))
-        logger.info(f"查询到 {len(sales_data)} 条销售记录")
+        # 1. 收款数据匹配阶段
+        receipt_match_conditions = {}
         
-        # 查询收款数据
-        receipt_query = query.copy()
-        if '客户单位' in receipt_query:
-            # 收款表中的字段名可能不同
-            receipt_query['客户名称'] = query['客户单位']
-            del receipt_query['客户单位']
+        if customer_name:
+            receipt_match_conditions['客户名称'] = {'$regex': customer_name, '$options': 'i'}
+        if start_date or end_date:
+            receipt_date_query = {}
+            if start_date:
+                receipt_date_query['$gte'] = start_date
+            if end_date:
+                receipt_date_query['$lte'] = end_date
+            receipt_match_conditions['日期'] = receipt_date_query
+            
+        if receipt_match_conditions:
+            receipt_pipeline.append({'$match': receipt_match_conditions})
+            
+        # 2. 收款数据分组聚合
+        receipt_pipeline.append({
+            '$group': {
+                '_id': '$客户名称',
+                'total_receipts': {'$sum': '$收款金额'},
+                'receipt_count': {'$sum': 1},
+                'latest_receipt_date': {'$max': '$日期'}
+            }
+        })
         
-        receipt_data = list(receipt_collection.find(receipt_query, {'_id': 0}))
-        logger.info(f"查询到 {len(receipt_data)} 条收款记录")
+        logger.info(f"销售查询条件: {sales_match_conditions}")
+        logger.info(f"收款查询条件: {receipt_match_conditions}")
         
-        # 按客户汇总销售金额
+        # 执行聚合查询
+        sales_summary = {item['_id']: item for item in sales_collection.aggregate(sales_pipeline)}
+        receipt_summary = {item['_id']: item for item in receipt_collection.aggregate(receipt_pipeline)}
+        
+        logger.info(f"聚合查询完成，销售客户数: {len(sales_summary)}，收款客户数: {len(receipt_summary)}")
+        
+        # 合并销售和收款数据
+        all_customers = set(sales_summary.keys()) | set(receipt_summary.keys())
         customer_sales = {}
-        for sale in sales_data:
-            try:
-                customer = sale.get('客户单位', '')
-                if not customer:
-                    continue
-                    
-                amount = float(sale.get('金额', 0) or 0)
-                date = sale.get('日期', '')
-                
-                if customer not in customer_sales:
-                    customer_sales[customer] = {
-                        'total_sales': 0,
-                        'sales_count': 0,
-                        'latest_sale_date': None
-                    }
-                
-                customer_sales[customer]['total_sales'] += amount
-                customer_sales[customer]['sales_count'] += 1
-                
-                # 更新最新销售日期
-                if date:
-                    if (not customer_sales[customer]['latest_sale_date'] or 
-                        date > customer_sales[customer]['latest_sale_date']):
-                        customer_sales[customer]['latest_sale_date'] = date
-                        
-            except (ValueError, TypeError) as e:
-                logger.warning(f"处理销售记录时出错: {e}, 记录: {sale}")
-                continue
+        for customer in all_customers:
+            sales_info = sales_summary.get(customer, {})
+            receipt_info = receipt_summary.get(customer, {})
+            
+            customer_sales[customer] = {
+                'total_sales': sales_info.get('total_sales', 0),
+                'sales_count': sales_info.get('sales_count', 0),
+                'latest_sale_date': sales_info.get('latest_sale_date'),
+                'earliest_sale_date': sales_info.get('earliest_sale_date')
+            }
         
         # 按客户汇总收款金额
         customer_receipts = {}
-        for receipt in receipt_data:
-            try:
-                customer = receipt.get('客户名称', '')
-                if not customer:
-                    continue
-                    
-                amount = float(receipt.get('收款金额', 0) or 0)
-                date = receipt.get('日期', '')
-                
-                if customer not in customer_receipts:
-                    customer_receipts[customer] = {
-                        'total_receipts': 0,
-                        'receipt_count': 0,
-                        'latest_receipt_date': None
-                    }
-                
-                customer_receipts[customer]['total_receipts'] += amount
-                customer_receipts[customer]['receipt_count'] += 1
-                
-                # 更新最新收款日期
-                if date:
-                    if (not customer_receipts[customer]['latest_receipt_date'] or 
-                        date > customer_receipts[customer]['latest_receipt_date']):
-                        customer_receipts[customer]['latest_receipt_date'] = date
-                        
-            except (ValueError, TypeError) as e:
-                logger.warning(f"处理收款记录时出错: {e}, 记录: {receipt}")
-                continue
+        for customer in all_customers:
+            receipt_info = receipt_summary.get(customer, {})
+            
+            customer_receipts[customer] = {
+                'total_receipts': receipt_info.get('total_receipts', 0),
+                'receipt_count': receipt_info.get('receipt_count', 0),
+                'latest_receipt_date': receipt_info.get('latest_receipt_date')
+            }
         
         # 合并数据生成应收账款报表
         all_customers = set(customer_sales.keys()) | set(customer_receipts.keys())

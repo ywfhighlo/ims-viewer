@@ -9,34 +9,21 @@ import sys
 import json
 import argparse
 from typing import List, Dict, Any, Optional
-from pymongo import MongoClient
-from datetime import datetime, timedelta
+from datetime import datetime
 import os
 
-# 添加scripts目录到Python路径
-script_dir = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(script_dir)
+# 添加项目根目录到Python路径
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from enhanced_logger import EnhancedLogger
-
-def get_database_connection():
-    """获取MongoDB数据库连接"""
-    try:
-        client = MongoClient('mongodb://localhost:27017/')
-        db_name = os.environ.get('IMS_DB_NAME', 'ims_viewer')
-        db = client[db_name]
-        # 测试连接
-        client.admin.command('ping')
-        return db
-    except Exception as e:
-        raise Exception(f"数据库连接失败: {str(e)}")
+from scripts.enhanced_logger import EnhancedLogger
+from scripts.db_connection import get_database_connection
 
 def generate_supplier_reconciliation(start_date: Optional[str] = None, 
                                    end_date: Optional[str] = None,
                                    supplier_name: Optional[str] = None,
                                    logger: Optional[EnhancedLogger] = None) -> List[Dict[str, Any]]:
     """
-    生成供应商对账表
+    生成供应商对账表（优化版本 - 使用聚合查询提升性能）
     
     Args:
         start_date: 开始日期 (YYYY-MM-DD格式)
@@ -52,7 +39,7 @@ def generate_supplier_reconciliation(start_date: Optional[str] = None,
     
     try:
         db = get_database_connection()
-        logger.info("开始生成供应商对账表")
+        logger.info("开始生成供应商对账表（优化版本）")
         
         # 构建日期过滤条件
         date_filter = {}
@@ -72,91 +59,116 @@ def generate_supplier_reconciliation(start_date: Optional[str] = None,
         suppliers = list(suppliers_collection.find(suppliers_query, {'_id': 0}))
         logger.info(f"找到 {len(suppliers)} 个供应商")
         
+        # 提取供应商名称列表
+        supplier_names = [supplier.get('supplier_name', '') for supplier in suppliers if supplier.get('supplier_name')]
+        
+        if not supplier_names:
+            logger.info("没有找到有效的供应商名称")
+            return []
+        
+        # 2. 使用聚合查询批量获取采购数据
+        purchase_pipeline = [
+            {
+                '$match': {
+                    'supplier_name': {'$in': supplier_names}
+                }
+            }
+        ]
+        
+        # 添加日期过滤
+        if date_filter:
+            purchase_pipeline[0]['$match']['inbound_date'] = date_filter
+        
+        # 聚合采购数据
+        purchase_pipeline.extend([
+            {
+                '$group': {
+                    '_id': '$supplier_name',
+                    'total_purchase_amount': {'$sum': '$amount'},
+                    'purchase_count': {'$sum': 1},
+                    'latest_purchase_date': {'$max': '$inbound_date'}
+                }
+            }
+        ])
+        
+        purchase_inbound = db['purchase_inbound']
+        purchase_aggregated = list(purchase_inbound.aggregate(purchase_pipeline))
+        purchase_dict = {item['_id']: item for item in purchase_aggregated}
+        
+        # 3. 使用聚合查询批量获取付款数据
+        payment_pipeline = [
+            {
+                '$match': {
+                    'supplier_name': {'$in': supplier_names}
+                }
+            }
+        ]
+        
+        # 添加日期过滤
+        if date_filter:
+            payment_pipeline[0]['$match']['payment_date'] = date_filter
+        
+        # 聚合付款数据
+        payment_pipeline.extend([
+            {
+                '$group': {
+                    '_id': '$supplier_name',
+                    'total_payment_amount': {'$sum': '$amount'},
+                    'payment_count': {'$sum': 1},
+                    'latest_payment_date': {'$max': '$payment_date'}
+                }
+            }
+        ])
+        
+        payment_details = db['payment_details']
+        payment_aggregated = list(payment_details.aggregate(payment_pipeline))
+        payment_dict = {item['_id']: item for item in payment_aggregated}
+        
+        logger.info(f"聚合查询完成: 采购数据 {len(purchase_dict)} 条, 付款数据 {len(payment_dict)} 条")
+        
+        # 4. 构建对账表数据
         reconciliation_data = []
         
         for supplier in suppliers:
             supplier_name_key = supplier.get('supplier_name', '')
             if not supplier_name_key:
                 continue
-                
-            logger.info(f"处理供应商: {supplier_name_key}")
             
-            # 2. 查询该供应商的进货入库记录
-            purchase_filter = {'supplier_name': supplier_name_key}
-            if date_filter:
-                purchase_filter['inbound_date'] = date_filter
+            # 获取聚合后的采购数据
+            purchase_data = purchase_dict.get(supplier_name_key, {})
+            total_purchase_amount = purchase_data.get('total_purchase_amount', 0) or 0
+            purchase_count = purchase_data.get('purchase_count', 0) or 0
+            latest_purchase_date = purchase_data.get('latest_purchase_date')
             
-            purchase_inbound = db['purchase_inbound']
-            purchase_records = list(purchase_inbound.find(purchase_filter, {'_id': 0}))
+            # 获取聚合后的付款数据
+            payment_data = payment_dict.get(supplier_name_key, {})
+            total_payment_amount = payment_data.get('total_payment_amount', 0) or 0
+            payment_count = payment_data.get('payment_count', 0) or 0
+            latest_payment_date = payment_data.get('latest_payment_date')
             
-            # 计算采购总金额
-            total_purchase_amount = 0
-            purchase_count = 0
-            for record in purchase_records:
-                amount = record.get('amount', 0)
-                if isinstance(amount, (int, float)):
-                    total_purchase_amount += amount
-                    purchase_count += 1
-            
-            # 3. 查询该供应商的付款记录
-            payment_filter = {'supplier_name': supplier_name_key}
-            if date_filter:
-                payment_filter['payment_date'] = date_filter
-            
-            payment_details = db['payment_details']
-            payment_records = list(payment_details.find(payment_filter, {'_id': 0}))
-            
-            # 计算付款总金额
-            total_payment_amount = 0
-            payment_count = 0
-            for record in payment_records:
-                amount = record.get('amount', 0)
-                if isinstance(amount, (int, float)):
-                    total_payment_amount += amount
-                    payment_count += 1
-            
-            # 4. 计算应付账款余额
+            # 计算应付账款余额
             balance = total_purchase_amount - total_payment_amount
             
-            # 5. 获取最近交易日期
-            latest_purchase_date = None
-            latest_payment_date = None
-            
-            if purchase_records:
-                latest_purchase = max(purchase_records, 
-                                    key=lambda x: x.get('inbound_date', ''), 
-                                    default=None)
-                if latest_purchase:
-                    latest_purchase_date = latest_purchase.get('inbound_date')
-            
-            if payment_records:
-                latest_payment = max(payment_records, 
-                                   key=lambda x: x.get('payment_date', ''), 
-                                   default=None)
-                if latest_payment:
-                    latest_payment_date = latest_payment.get('payment_date')
-            
-            # 6. 构建对账记录
             # 处理日期字段，确保可以JSON序列化
             latest_purchase_str = None
             if latest_purchase_date:
                 if isinstance(latest_purchase_date, datetime):
                     latest_purchase_str = latest_purchase_date.strftime('%Y-%m-%d')
                 else:
-                    latest_purchase_str = str(latest_purchase_date)[:10]  # 取前10位日期部分
+                    latest_purchase_str = str(latest_purchase_date)[:10]
             
             latest_payment_str = None
             if latest_payment_date:
                 if isinstance(latest_payment_date, datetime):
                     latest_payment_str = latest_payment_date.strftime('%Y-%m-%d')
                 else:
-                    latest_payment_str = str(latest_payment_date)[:10]  # 取前10位日期部分
+                    latest_payment_str = str(latest_payment_date)[:10]
             
             reconciliation_record = {
                 'supplier_name': supplier_name_key,
                 'supplier_credit_code': supplier.get('credit_code', ''),
                 'supplier_contact': supplier.get('contact_person', ''),
-                'supplier_phone': supplier.get('phone', ''),  # 修正字段名
+                'supplier_phone': supplier.get('phone', ''),
                 'total_purchase_amount': round(total_purchase_amount, 2),
                 'total_payment_amount': round(total_payment_amount, 2),
                 'balance': round(balance, 2),
@@ -169,7 +181,6 @@ def generate_supplier_reconciliation(start_date: Optional[str] = None,
             }
             
             reconciliation_data.append(reconciliation_record)
-            logger.info(f"供应商 {supplier_name_key}: 采购金额={total_purchase_amount}, 付款金额={total_payment_amount}, 余额={balance}")
         
         # 按余额降序排序
         reconciliation_data.sort(key=lambda x: x['balance'], reverse=True)

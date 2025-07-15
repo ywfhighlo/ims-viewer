@@ -20,7 +20,7 @@ def generate_purchase_report(start_date: Optional[str] = None,
                            supplier_name: Optional[str] = None,
                            product_name: Optional[str] = None) -> List[Dict[str, Any]]:
     """
-    生成采购统计报表
+    生成采购统计报表（优化版本 - 使用聚合查询提升性能）
     
     Args:
         start_date: 开始日期
@@ -35,12 +35,13 @@ def generate_purchase_report(start_date: Optional[str] = None,
     
     try:
         db = get_database_connection()
+        logger.info("开始生成采购统计报表（优化版本）")
         
-        # 获取进货入库数据
-        purchase_collection = db['purchase_inbound']
+        # 构建聚合管道
+        pipeline = []
         
-        # 构建查询条件
-        query = {}
+        # 1. 匹配阶段 - 构建过滤条件
+        match_conditions = {}
         
         # 日期范围筛选
         if start_date or end_date:
@@ -49,137 +50,112 @@ def generate_purchase_report(start_date: Optional[str] = None,
                 date_query['$gte'] = start_date
             if end_date:
                 date_query['$lte'] = end_date
-            query['inbound_date'] = date_query
+            match_conditions['inbound_date'] = date_query
             
         # 供应商名称筛选
         if supplier_name:
-            query['supplier_name'] = {'$regex': supplier_name, '$options': 'i'}
+            match_conditions['supplier_name'] = {'$regex': supplier_name, '$options': 'i'}
             
         # 产品名称筛选
         if product_name:
-            query['material_name'] = {'$regex': product_name, '$options': 'i'}
+            match_conditions['material_name'] = {'$regex': product_name, '$options': 'i'}
             
-        logger.info(f"查询条件: {query}")
+        if match_conditions:
+            pipeline.append({'$match': match_conditions})
+            
+        logger.info(f"查询条件: {match_conditions}")
         
-        # 查询采购数据
-        purchase_data = list(purchase_collection.find(query, {'_id': 0}))
-        logger.info(f"查询到 {len(purchase_data)} 条采购记录")
-        
-        # 按产品汇总采购数据
-        product_summary = {}
-        
-        for purchase in purchase_data:
-            try:
-                product_code = purchase.get('material_code', '')
-                product_name_val = purchase.get('material_name', '')
-                
-                if not product_code and not product_name_val:
-                    continue
-                    
-                key = f"{product_code}_{product_name_val}"
-                
-                if key not in product_summary:
-                    product_summary[key] = {
-                        'product_code': product_code,
-                        'product_name': product_name_val,
-                        'product_model': purchase.get('specification', ''),
-                        'unit': purchase.get('unit', ''),
-                        'total_quantity': 0,
-                        'total_amount': 0,
-                        'purchase_count': 0,
-                        'suppliers': set(),
-                        'latest_purchase_date': None,
-                        'avg_unit_price': 0,
-                        'min_unit_price': float('inf'),
-                        'max_unit_price': 0
-                    }
-                
-                # 累计数量和金额
-                quantity = float(purchase.get('quantity', 0) or 0)
-                amount = float(purchase.get('amount', 0) or 0)
-                unit_price = float(purchase.get('purchase_unit_price', 0) or 0)
-                
-                product_summary[key]['total_quantity'] += quantity
-                product_summary[key]['total_amount'] += amount
-                product_summary[key]['purchase_count'] += 1
-                
-                # 记录供应商
-                supplier = purchase.get('supplier_name', '')
-                if supplier:
-                    product_summary[key]['suppliers'].add(supplier)
-                
-                # 更新价格范围
-                if unit_price > 0:
-                    product_summary[key]['min_unit_price'] = min(product_summary[key]['min_unit_price'], unit_price)
-                    product_summary[key]['max_unit_price'] = max(product_summary[key]['max_unit_price'], unit_price)
-                
-                # 更新最新采购日期
-                purchase_date = purchase.get('inbound_date', '')
-                if purchase_date:
-                    if (not product_summary[key]['latest_purchase_date'] or 
-                        purchase_date > product_summary[key]['latest_purchase_date']):
-                        product_summary[key]['latest_purchase_date'] = purchase_date
-                        
-            except (ValueError, TypeError) as e:
-                logger.warning(f"处理采购记录时出错: {e}, 记录: {purchase}")
-                continue
-        
-        # 转换为报表格式
-        report_data = []
-        for key, summary in product_summary.items():
-            # 计算平均单价
-            avg_price = (summary['total_amount'] / summary['total_quantity'] 
-                        if summary['total_quantity'] > 0 else 0)
-            
-            # 处理价格范围
-            min_price = summary['min_unit_price'] if summary['min_unit_price'] != float('inf') else 0
-            max_price = summary['max_unit_price']
-            
-            # 采购频率分析
-            if summary['purchase_count'] >= 10:
-                purchase_frequency = "高频"
-            elif summary['purchase_count'] >= 5:
-                purchase_frequency = "正常"
-            else:
-                purchase_frequency = "低频"
-            
-            # 价格稳定性分析
-            if min_price > 0 and max_price > 0:
-                price_variance = ((max_price - min_price) / min_price) * 100
-                if price_variance <= 5:
-                    price_stability = "稳定"
-                elif price_variance <= 15:
-                    price_stability = "一般"
-                else:
-                    price_stability = "波动大"
-            else:
-                price_stability = "未知"
-            
-            report_item = {
-                'product_code': summary['product_code'],
-                'product_name': summary['product_name'],
-                'product_model': summary['product_model'],
-                'unit': summary['unit'],
-                'total_quantity': summary['total_quantity'],
-                'total_amount': summary['total_amount'],
-                'purchase_count': summary['purchase_count'],
-                'supplier_count': len(summary['suppliers']),
-                'avg_unit_price': avg_price,
-                'min_unit_price': min_price,
-                'max_unit_price': max_price,
-                'latest_purchase_date': summary['latest_purchase_date'],
-                'purchase_frequency': purchase_frequency,
-                'price_stability': price_stability,
-                'generated_date': datetime.now().isoformat()
+        # 2. 分组聚合阶段
+        pipeline.append({
+            '$group': {
+                '_id': {
+                    'material_code': '$material_code',
+                    'material_name': '$material_name'
+                },
+                'product_model': {'$first': '$specification'},
+                'unit': {'$first': '$unit'},
+                'total_quantity': {'$sum': '$quantity'},
+                'total_amount': {'$sum': '$amount'},
+                'purchase_count': {'$sum': 1},
+                'suppliers': {'$addToSet': '$supplier_name'},
+                'latest_purchase_date': {'$max': '$inbound_date'},
+                'min_unit_price': {'$min': '$purchase_unit_price'},
+                'max_unit_price': {'$max': '$purchase_unit_price'},
+                'unit_prices': {'$push': '$purchase_unit_price'}
             }
-            
-            report_data.append(report_item)
+        })
         
-        # 按采购金额降序排序
-        report_data.sort(key=lambda x: x['total_amount'], reverse=True)
+        # 3. 投影阶段 - 计算衍生字段
+        pipeline.append({
+            '$project': {
+                'product_code': '$_id.material_code',
+                'product_name': '$_id.material_name',
+                'product_model': 1,
+                'unit': 1,
+                'total_quantity': 1,
+                'total_amount': 1,
+                'purchase_count': 1,
+                'supplier_count': {'$size': '$suppliers'},
+                'latest_purchase_date': 1,
+                'min_unit_price': 1,
+                'max_unit_price': 1,
+                'avg_unit_price': {
+                    '$cond': {
+                        'if': {'$gt': ['$total_quantity', 0]},
+                        'then': {'$divide': ['$total_amount', '$total_quantity']},
+                        'else': 0
+                    }
+                },
+                'purchase_frequency': {
+                    '$switch': {
+                        'branches': [
+                            {'case': {'$gte': ['$purchase_count', 10]}, 'then': '高频'},
+                            {'case': {'$gte': ['$purchase_count', 5]}, 'then': '正常'}
+                        ],
+                        'default': '低频'
+                    }
+                },
+                'price_stability': {
+                    '$switch': {
+                        'branches': [
+                            {
+                                'case': {
+                                    '$and': [
+                                        {'$gt': ['$min_unit_price', 0]},
+                                        {'$lte': [{'$divide': [{'$subtract': ['$max_unit_price', '$min_unit_price']}, '$min_unit_price']}, 0.05]}
+                                    ]
+                                },
+                                'then': '稳定'
+                            },
+                            {
+                                'case': {
+                                    '$and': [
+                                        {'$gt': ['$min_unit_price', 0]},
+                                        {'$lte': [{'$divide': [{'$subtract': ['$max_unit_price', '$min_unit_price']}, '$min_unit_price']}, 0.15]}
+                                    ]
+                                },
+                                'then': '一般'
+                            }
+                        ],
+                        'default': '波动大'
+                    }
+                },
+                'generated_date': {'$literal': datetime.now().isoformat()},
+                '_id': 0
+            }
+        })
         
-        logger.info(f"生成采购统计报表完成，共 {len(report_data)} 个产品")
+        # 4. 排序阶段 - 按采购金额降序
+        pipeline.append({'$sort': {'total_amount': -1}})
+        
+        # 执行聚合查询
+        purchase_collection = db['purchase_inbound']
+        report_data = list(purchase_collection.aggregate(pipeline))
+        
+        logger.info(f"聚合查询完成，生成采购统计报表，共 {len(report_data)} 个产品")
         return report_data
+        
+        # 聚合查询已经完成了所有计算，直接返回结果
         
     except Exception as e:
         logger.error(f"生成采购统计报表失败: {str(e)}")

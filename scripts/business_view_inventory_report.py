@@ -22,7 +22,7 @@ def generate_inventory_report(start_date: Optional[str] = None,
                             end_date: Optional[str] = None,
                             product_name: Optional[str] = None) -> List[Dict[str, Any]]:
     """
-    生成库存盘点报表
+    生成库存盘点报表（优化版本 - 使用聚合查询提升性能）
     
     Args:
         start_date: 开始日期
@@ -36,59 +36,114 @@ def generate_inventory_report(start_date: Optional[str] = None,
     
     try:
         db = get_database_connection()
+        logger.info("开始生成库存盘点报表（优化版本）")
         
-        # 获取库存统计数据
-        inventory_collection = db['inventory_stats']
+        # 构建聚合管道
+        pipeline = []
         
-        # 构建查询条件
-        query = {}
+        # 1. 匹配阶段 - 构建过滤条件
+        match_conditions = {}
+        
+        # 产品名称筛选
         if product_name:
-            query['进货物料名称'] = {'$regex': product_name, '$options': 'i'}
+            match_conditions['material_name'] = {'$regex': product_name, '$options': 'i'}
             
-        logger.info(f"查询条件: {query}")
+        if match_conditions:
+            pipeline.append({'$match': match_conditions})
+            
+        logger.info(f"查询条件: {match_conditions}")
         
-        # 查询库存数据
-        inventory_data = list(inventory_collection.find(query, {'_id': 0}))
-        logger.info(f"查询到 {len(inventory_data)} 条库存记录")
+        # 2. 投影阶段 - 计算衍生字段
+        pipeline.append({
+            '$project': {
+                'product_code': '$material_code',
+                'product_name': '$material_name',
+                'product_model': '$specification',
+                'unit': '$unit',
+                'current_stock': {
+                    '$toDouble': {
+                        '$ifNull': ['$stock_quantity', 0]
+                    }
+                },
+                'inbound_amount': {
+                    '$toDouble': {
+                        '$ifNull': ['$inbound_amount', 0]
+                    }
+                },
+                'inbound_quantity': {
+                    '$toDouble': {
+                        '$ifNull': ['$inbound_quantity', 1]
+                    }
+                },
+                'safety_stock': {
+                    '$toDouble': {
+                        '$ifNull': ['$safety_stock', 0]
+                    }
+                },
+                'last_update_date': '$code_mapping_time',
+                'unit_price': {
+                    '$cond': {
+                        'if': {'$gt': [{'$toDouble': {'$ifNull': ['$inbound_quantity', 1]}}, 0]},
+                        'then': {
+                            '$divide': [
+                                {'$toDouble': {'$ifNull': ['$inbound_amount', 0]}},
+                                {'$toDouble': {'$ifNull': ['$inbound_quantity', 1]}}
+                            ]
+                        },
+                        'else': 0
+                    }
+                },
+                'stock_value': {
+                    '$multiply': [
+                        {'$toDouble': {'$ifNull': ['$stock_quantity', 0]}},
+                        {
+                            '$cond': {
+                                'if': {'$gt': [{'$toDouble': {'$ifNull': ['$inbound_quantity', 1]}}, 0]},
+                                'then': {
+                                    '$divide': [
+                                        {'$toDouble': {'$ifNull': ['$inbound_amount', 0]}},
+                                        {'$toDouble': {'$ifNull': ['$inbound_quantity', 1]}}
+                                    ]
+                                },
+                                'else': 0
+                            }
+                        }
+                    ]
+                },
+                'stock_status': {
+                    '$switch': {
+                        'branches': [
+                            {
+                                'case': {'$lte': [{'$toDouble': {'$ifNull': ['$stock_quantity', 0]}}, 0]},
+                                'then': '缺货'
+                            },
+                            {
+                                'case': {
+                                    '$lte': [
+                                        {'$toDouble': {'$ifNull': ['$stock_quantity', 0]}},
+                                        {'$toDouble': {'$ifNull': ['$safety_stock', 0]}}
+                                    ]
+                                },
+                                'then': '低库存'
+                            }
+                        ],
+                        'default': '正常'
+                    }
+                },
+                'supplier_name': {'$literal': ''},  # inventory_stats中没有供应商信息
+                'generated_date': {'$literal': datetime.now().isoformat()},
+                '_id': 0
+            }
+        })
         
-        # 处理库存数据
-        report_data = []
-        for item in inventory_data:
-            try:
-                # 计算库存价值
-                current_stock = float(item.get('当前库存', 0) or 0)
-                unit_price = float(item.get('单价', 0) or 0)
-                stock_value = current_stock * unit_price
-                
-                # 库存状态判断
-                if current_stock <= 0:
-                    stock_status = "缺货"
-                elif current_stock <= 10:  # 可配置的低库存阈值
-                    stock_status = "低库存"
-                else:
-                    stock_status = "正常"
-                
-                report_item = {
-                    'product_code': item.get('进货物料编码', ''),
-                    'product_name': item.get('进货物料名称', ''),
-                    'product_model': item.get('进货物料型号', ''),
-                    'unit': item.get('单位', ''),
-                    'current_stock': current_stock,
-                    'unit_price': unit_price,
-                    'stock_value': stock_value,
-                    'stock_status': stock_status,
-                    'supplier_name': item.get('供应商名称', ''),
-                    'last_update_date': item.get('最后更新日期', ''),
-                    'generated_date': datetime.now().isoformat()
-                }
-                
-                report_data.append(report_item)
-                
-            except (ValueError, TypeError) as e:
-                logger.warning(f"处理库存记录时出错: {e}, 记录: {item}")
-                continue
+        # 3. 排序阶段 - 按库存价值降序
+        pipeline.append({'$sort': {'stock_value': -1}})
         
-        logger.info(f"生成库存盘点报表完成，共 {len(report_data)} 条记录")
+        # 执行聚合查询
+        inventory_collection = db['inventory_stats']
+        report_data = list(inventory_collection.aggregate(pipeline))
+        
+        logger.info(f"聚合查询完成，生成库存盘点报表，共 {len(report_data)} 条记录")
         return report_data
         
     except Exception as e:
@@ -211,13 +266,12 @@ def main():
         
         # 输出结果
         if output_format == 'table':
-            formatted_output = safe_execute(
-                format_table_output,
-                args=(report_data,),
-                default_return="报表格式化失败",
-                context="格式化表格输出"
-            )
-            print(formatted_output)
+            try:
+                formatted_output = format_table_output(report_data)
+                print(formatted_output)
+            except Exception as e:
+                logger.error(f"格式化表格输出失败: {e}")
+                print("报表格式化失败")
         else:
             print(json.dumps(report_data, ensure_ascii=False, indent=2))
         
