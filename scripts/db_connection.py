@@ -61,10 +61,10 @@ class DatabaseConnection:
 _db_connection = DatabaseConnection()
 
 
-@retry_on_failure(max_retries=3, delay=1.0, retry_on=(ConnectionError, DatabaseError))
+@retry_on_failure(max_retries=2, delay=0.5, retry_on=(ConnectionError, DatabaseError))
 def get_database_connection() -> Database:
     """
-    获取MongoDB数据库连接
+    获取MongoDB数据库连接（优化版）
     
     Returns:
         Database: MongoDB数据库对象
@@ -75,53 +75,67 @@ def get_database_connection() -> Database:
     logger = get_logger("db_connection")
     
     try:
-        # 首先尝试使用新的配置管理器
-        db_config = get_new_database_config()
-        logger.info("使用配置管理器连接数据库", 
-                   host=db_config.host, 
-                   port=db_config.port,
-                   database=db_config.database_name)
-        
-        # 创建MongoDB客户端
-        client = MongoClient(
-            host=db_config.host,
-            port=db_config.port,
-            username=db_config.username,
-            password=db_config.password,
-            serverSelectionTimeoutMS=db_config.connection_timeout * 1000,
-            maxPoolSize=db_config.max_pool_size,
-            retryWrites=db_config.retry_writes
-        )
-        
-        # 测试连接
-        client.admin.command('ping')
-        
-        # 获取数据库
-        db = client[db_config.database_name]
-        
-        logger.info("数据库连接成功", database=db_config.database_name)
+        # 首先尝试使用优化的连接器
+        from db_connection_optimizer import get_fast_database_connection
+        db = get_fast_database_connection()
+        logger.info("使用优化连接器连接数据库成功")
         return db
         
-    except Exception as config_error:
-        logger.warning("配置管理器连接失败，尝试使用原有方法", error=str(config_error))
+    except Exception as optimizer_error:
+        logger.warning("优化连接器失败，尝试配置管理器", error=str(optimizer_error))
         
         try:
-            # 回退到原有的连接方法
-            db = _db_connection.get_database()
-            logger.info("使用原有配置连接数据库成功")
-            return db
-        except Exception as fallback_error:
-            logger.error("所有数据库连接方法都失败", 
-                        config_error=str(config_error),
-                        fallback_error=str(fallback_error))
-            raise DatabaseError(
-                "数据库连接失败",
-                operation="get_connection",
-                details={
-                    "config_error": str(config_error),
-                    "fallback_error": str(fallback_error)
-                }
+            # 尝试使用新的配置管理器（快速失败）
+            db_config = get_new_database_config()
+            logger.info("使用配置管理器连接数据库", 
+                       host=db_config.host, 
+                       port=db_config.port,
+                       database=db_config.database_name)
+            
+            # 创建MongoDB客户端，使用更短的超时时间
+            client = MongoClient(
+                host=db_config.host,
+                port=db_config.port,
+                username=db_config.username,
+                password=db_config.password,
+                serverSelectionTimeoutMS=3000,  # 3秒超时
+                connectTimeoutMS=2000,  # 连接超时2秒
+                socketTimeoutMS=3000,   # Socket超时3秒
+                maxPoolSize=db_config.max_pool_size,
+                retryWrites=db_config.retry_writes
             )
+            
+            # 测试连接
+            client.admin.command('ping')
+            
+            # 获取数据库
+            db = client[db_config.database_name]
+            
+            logger.info("配置管理器连接成功", database=db_config.database_name)
+            return db
+            
+        except Exception as config_error:
+            logger.warning("配置管理器连接失败，尝试原有方法", error=str(config_error))
+            
+            try:
+                # 回退到原有的连接方法
+                db = _db_connection.get_database()
+                logger.info("使用原有配置连接数据库成功")
+                return db
+            except Exception as fallback_error:
+                logger.error("所有数据库连接方法都失败", 
+                            optimizer_error=str(optimizer_error),
+                            config_error=str(config_error),
+                            fallback_error=str(fallback_error))
+                raise DatabaseError(
+                    "数据库连接失败",
+                    operation="get_connection",
+                    details={
+                        "optimizer_error": str(optimizer_error),
+                        "config_error": str(config_error),
+                        "fallback_error": str(fallback_error)
+                    }
+                )
 
 
 def close_database_connection():

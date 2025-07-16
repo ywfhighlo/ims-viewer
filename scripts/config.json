@@ -5,7 +5,7 @@
     "database_name": "ims_database",
     "username": null,
     "password": null,
-    "connection_timeout": 30,
+    "connection_timeout": 3,
     "max_pool_size": 100,
     "retry_writes": true
   },

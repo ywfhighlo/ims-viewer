@@ -15,7 +15,7 @@ from pymongo.errors import ConnectionFailure
 # 默认配置
 DEFAULT_CONFIG = {
     'mongo_uri': 'mongodb://localhost:27017/',
-    'database_name': 'ims_viewer',
+    'database_name': 'ims_database',
     'username': '',
     'password': '',
     'auth_database': 'admin'
@@ -84,7 +84,7 @@ def get_database_config() -> Dict[str, str]:
     
     # 确保database_name不为空
     if not config['database_name']:
-        config['database_name'] = 'ims_viewer'
+        config['database_name'] = 'ims_database'
     
     return config
 

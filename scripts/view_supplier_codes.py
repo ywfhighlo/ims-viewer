@@ -11,7 +11,7 @@ from pymongo.errors import ConnectionFailure
 
 # --- 数据库配置 ---
 MONGO_URI = "mongodb://localhost:27017/"
-DATABASE_NAME = os.environ.get('IMS_DB_NAME', 'ims_viewer')
+DATABASE_NAME = os.environ.get('IMS_DB_NAME', 'ims_database')
 SUPPLIERS_COLLECTION = "suppliers"
 
 def get_db_client():

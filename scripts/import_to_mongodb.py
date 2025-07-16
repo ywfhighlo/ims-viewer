@@ -18,7 +18,7 @@ import sys
 
 # --- 配置 ---
 MONGO_URI = "mongodb://localhost:27017/"
-DB_NAME = os.environ.get('IMS_DB_NAME', 'ims_viewer')
+DB_NAME = os.environ.get('IMS_DB_NAME', 'ims_database')
 
 def connect_mongodb(logger):
     """连接到MongoDB"""

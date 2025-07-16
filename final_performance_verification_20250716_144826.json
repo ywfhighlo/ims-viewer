@@ -1,0 +1,53 @@
+[
+  {
+    "name": "供应商对账表",
+    "script": "business_view_supplier_reconciliation.py",
+    "execution_time": 0.14431285858154297,
+    "record_count": 2,
+    "performance_grade": "良好",
+    "success": true
+  },
+  {
+    "name": "供应商对账表（简化版）",
+    "script": "business_view_supplier_reconciliation_simple.py",
+    "execution_time": 0.03578352928161621,
+    "record_count": 2,
+    "performance_grade": "优秀",
+    "success": true
+  },
+  {
+    "name": "客户对账单",
+    "script": "business_view_customer_reconciliation.py",
+    "execution_time": 0.03344273567199707,
+    "record_count": 111,
+    "performance_grade": "优秀",
+    "success": true
+  },
+  {
+    "name": "库存盘点报表",
+    "script": "business_view_inventory_report.py",
+    "execution_time": 0.00954890251159668,
+    "record_count": 0,
+    "performance_grade": "失败",
+    "success": false,
+    "error": "generate_inventory_report() got an unexpected keyword argument 'logger'"
+  },
+  {
+    "name": "销售报表",
+    "script": "business_view_sales_report.py",
+    "execution_time": 0.023851633071899414,
+    "record_count": 0,
+    "performance_grade": "失败",
+    "success": false,
+    "error": "generate_sales_report() got an unexpected keyword argument 'logger'"
+  },
+  {
+    "name": "采购报表",
+    "script": "business_view_purchase_report.py",
+    "execution_time": 0.002009868621826172,
+    "record_count": 0,
+    "performance_grade": "失败",
+    "success": false,
+    "error": "generate_purchase_report() got an unexpected keyword argument 'logger'"
+  }
+]

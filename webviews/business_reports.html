@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>业务报表系统</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 10px; margin-bottom: 30px; text-align: center; }
+        .tabs { display: flex; background: white; border-radius: 10px; margin-bottom: 20px; overflow: hidden; }
+        .tab { flex: 1; padding: 15px 20px; background: #f8f9fa; border: none; cursor: pointer; font-size: 16px; transition: all 0.3s ease; }
+        .tab.active { background: #007bff; color: white; }
+        .tab-content { display: none; background: white; border-radius: 10px; padding: 30px; }
+        .tab-content.active { display: block; }
+        .form-group { margin-bottom: 20px; }
+        .form-row { display: flex; gap: 20px; margin-bottom: 20px; }
+        .form-col { flex: 1; }
+        label { display: block; margin-bottom: 8px; font-weight: 500; }
+        input, select { width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 6px; font-size: 14px; }
+        .btn { padding: 12px 24px; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: 500; margin-right: 10px; }
+        .btn-primary { background: #007bff; color: white; }
+        .btn-secondary { background: #6c757d; color: white; }
+        .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 9999; }
+        .loading-content { background: white; padding: 30px; border-radius: 10px; text-align: center; min-width: 300px; }
+        .progress-bar { width: 100%; height: 20px; background: #e9ecef; border-radius: 10px; overflow: hidden; margin: 20px 0; }
+        .progress-fill { height: 100%; background: #007bff; width: 0%; transition: width 0.3s ease; }
+        .error-message { background: #f8d7da; color: #721c24; padding: 15px; border-radius: 6px; margin: 15px 0; }
+        .success-message { background: #d4edda; color: #155724; padding: 15px; border-radius: 6px; margin: 15px 0; }
+        .data-table { width: 100%; border-collapse: collapse; margin-top: 20px; background: white; border-radius: 8px; overflow: hidden; }
+        .data-table th, .data-table td { padding: 12px; text-align: left; border-bottom: 1px solid #e9ecef; }
+        .data-table th { background: #f8f9fa; font-weight: 600; }
+        .retry-btn { background: #dc3545; color: white; }
+        .cancel-btn { background: #6c757d; color: white; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>业务报表系统</h1>
+            <p>异步加载 | 实时进度 | 智能缓存</p>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('supplier-reconciliation')">供应商对账表</button>
+            <button class="tab" onclick="showTab('customer-reconciliation')">客户对账单</button>
+            <button class="tab" onclick="showTab('inventory-report')">库存报表</button>
+            <button class="tab" onclick="showTab('sales-report')">销售报表</button>
+            <button class="tab" onclick="showTab('purchase-report')">采购报表</button>
+        </div>        <!
+-- 供应商对账表 -->
+        <div id="supplier-reconciliation" class="tab-content active">
+            <h2>供应商对账表</h2>
+            <form id="supplierForm" onsubmit="generateReport('supplier-reconciliation', event)">
+                <div class="form-row">
+                    <div class="form-col">
+                        <label for="supplier-start-date">开始日期</label>
+                        <input type="date" id="supplier-start-date" name="start_date">
+                    </div>
+                    <div class="form-col">
+                        <label for="supplier-end-date">结束日期</label>
+                        <input type="date" id="supplier-end-date" name="end_date">
+                    </div>
+                    <div class="form-col">
+                        <label for="supplier-name">供应商名称</label>
+                        <input type="text" id="supplier-name" name="supplier_name" placeholder="留空查询所有供应商">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <button type="submit" class="btn btn-primary">生成报表</button>
+                    <button type="button" class="btn btn-secondary" onclick="clearForm('supplierForm')">清空</button>
+                </div>
+            </form>
+            <div id="supplier-results"></div>
+        </div>
+
+        <!-- 客户对账单 -->
+        <div id="customer-reconciliation" class="tab-content">
+            <h2>客户对账单</h2>
+            <form id="customerForm" onsubmit="generateReport('customer-reconciliation', event)">
+                <div class="form-row">
+                    <div class="form-col">
+                        <label for="customer-start-date">开始日期</label>
+                        <input type="date" id="customer-start-date" name="start_date">
+                    </div>
+                    <div class="form-col">
+                        <label for="customer-end-date">结束日期</label>
+                        <input type="date" id="customer-end-date" name="end_date">
+                    </div>
+                    <div class="form-col">
+                        <label for="customer-name">客户名称</label>
+                        <input type="text" id="customer-name" name="customer_name" placeholder="留空查询所有客户">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <button type="submit" class="btn btn-primary">生成报表</button>
+                    <button type="button" class="btn btn-secondary" onclick="clearForm('customerForm')">清空</button>
+                </div>
+            </form>
+            <div id="customer-results"></div>
+        </div>
+
+        <!-- 库存报表 -->
+        <div id="inventory-report" class="tab-content">
+            <h2>库存报表</h2>
+            <form id="inventoryForm" onsubmit="generateReport('inventory-report', event)">
+                <div class="form-row">
+                    <div class="form-col">
+                        <label for="product-name">产品名称</label>
+                        <input type="text" id="product-name" name="product_name" placeholder="留空查询所有产品">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <button type="submit" class="btn btn-primary">生成报表</button>
+                    <button type="button" class="btn btn-secondary" onclick="clearForm('inventoryForm')">清空</button>
+                </div>
+            </form>
+            <div id="inventory-results"></div>
+        </div>
+
+        <!-- 销售报表 -->
+        <div id="sales-report" class="tab-content">
+            <h2>销售报表</h2>
+            <form id="salesForm" onsubmit="generateReport('sales-report', event)">
+                <div class="form-row">
+                    <div class="form-col">
+                        <label for="sales-start-date">开始日期</label>
+                        <input type="date" id="sales-start-date" name="start_date">
+                    </div>
+                    <div class="form-col">
+                        <label for="sales-end-date">结束日期</label>
+                        <input type="date" id="sales-end-date" name="end_date">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-col">
+                        <label for="sales-customer-name">客户名称</label>
+                        <input type="text" id="sales-customer-name" name="customer_name" placeholder="留空查询所有客户">
+                    </div>
+                    <div class="form-col">
+                        <label for="sales-product-name">产品名称</label>
+                        <input type="text" id="sales-product-name" name="product_name" placeholder="留空查询所有产品">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <button type="submit" class="btn btn-primary">生成报表</button>
+                    <button type="button" class="btn btn-secondary" onclick="clearForm('salesForm')">清空</button>
+                </div>
+            </form>
+            <div id="sales-results"></div>
+        </div> 
+       <!-- 采购报表 -->
+        <div id="purchase-report" class="tab-content">
+            <h2>采购报表</h2>
+            <form id="purchaseForm" onsubmit="generateReport('purchase-report', event)">
+                <div class="form-row">
+                    <div class="form-col">
+                        <label for="purchase-start-date">开始日期</label>
+                        <input type="date" id="purchase-start-date" name="start_date">
+                    </div>
+                    <div class="form-col">
+                        <label for="purchase-end-date">结束日期</label>
+                        <input type="date" id="purchase-end-date" name="end_date">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-col">
+                        <label for="purchase-supplier-name">供应商名称</label>
+                        <input type="text" id="purchase-supplier-name" name="supplier_name" placeholder="留空查询所有供应商">
+                    </div>
+                    <div class="form-col">
+                        <label for="purchase-product-name">产品名称</label>
+                        <input type="text" id="purchase-product-name" name="product_name" placeholder="留空查询所有产品">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <button type="submit" class="btn btn-primary">生成报表</button>
+                    <button type="button" class="btn btn-secondary" onclick="clearForm('purchaseForm')">清空</button>
+                </div>
+            </form>
+            <div id="purchase-results"></div>
+        </div>
+    </div>
+
+    <!-- 加载遮罩层 -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-content">
+            <h3 id="loadingTitle">正在生成报表...</h3>
+            <div class="progress-bar">
+                <div id="progressFill" class="progress-fill"></div>
+            </div>
+            <p id="loadingMessage">请稍候，正在处理您的请求...</p>
+            <p id="progressText">进度: 0%</p>
+            <div style="margin-top: 20px;">
+                <button id="cancelBtn" class="btn cancel-btn" onclick="cancelReport()">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 全局变量
+        let currentTaskId = null;
+        let progressInterval = null;
+        const vscode = acquireVsCodeApi();
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 设置默认日期
+            const today = new Date();
+            const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+            const todayStr = today.toISOString().split('T')[0];
+            const firstDayStr = firstDayOfMonth.toISOString().split('T')[0];
+
+            // 设置所有开始日期为本月第一天
+            document.querySelectorAll('input[name="start_date"]').forEach(input => {
+                input.value = firstDayStr;
+            });
+
+            // 设置所有结束日期为今天
+            document.querySelectorAll('input[name="end_date"]').forEach(input => {
+                input.value = todayStr;
+            });
+        });
+
+        // 显示标签页
+        function showTab(tabName) {
+            // 隐藏所有标签页内容
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+
+            // 移除所有标签的active类
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            // 显示选中的标签页内容
+            document.getElementById(tabName).classList.add('active');
+
+            // 添加active类到选中的标签
+            event.target.classList.add('active');
+        }        /
+/ 生成报表
+        function generateReport(reportType, event) {
+            event.preventDefault();
+            
+            const form = event.target;
+            const formData = new FormData(form);
+            const params = {};
+            
+            // 收集表单参数
+            for (let [key, value] of formData.entries()) {
+                if (value.trim()) {
+                    params[key] = value.trim();
+                }
+            }
+
+            // 显示加载状态
+            showLoading(`正在生成${getReportTitle(reportType)}...`);
+
+            // 发送异步报表生成请求
+            vscode.postMessage({
+                command: 'generateAsyncReport',
+                reportType: reportType,
+                params: params
+            });
+        }
+
+        // 显示加载状态
+        function showLoading(title, message = '请稍候，正在处理您的请求...') {
+            document.getElementById('loadingTitle').textContent = title;
+            document.getElementById('loadingMessage').textContent = message;
+            document.getElementById('progressFill').style.width = '0%';
+            document.getElementById('progressText').textContent = '进度: 0%';
+            document.getElementById('loadingOverlay').style.display = 'flex';
+        }
+
+        // 隐藏加载状态
+        function hideLoading() {
+            document.getElementById('loadingOverlay').style.display = 'none';
+            if (progressInterval) {
+                clearInterval(progressInterval);
+                progressInterval = null;
+            }
+        }
+
+        // 更新进度
+        function updateProgress(progress, message = '') {
+            const percentage = Math.round(progress * 100);
+            document.getElementById('progressFill').style.width = percentage + '%';
+            document.getElementById('progressText').textContent = `进度: ${percentage}%`;
+            
+            if (message) {
+                document.getElementById('loadingMessage').textContent = message;
+            }
+        }
+
+        // 取消报表生成
+        function cancelReport() {
+            if (currentTaskId) {
+                vscode.postMessage({
+                    command: 'cancelAsyncReport',
+                    taskId: currentTaskId
+                });
+            }
+            hideLoading();
+            currentTaskId = null;
+        }
+
+        // 清空表单
+        function clearForm(formId) {
+            const form = document.getElementById(formId);
+            form.reset();
+            
+            // 重新设置默认日期
+            const today = new Date();
+            const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+            const todayStr = today.toISOString().split('T')[0];
+            const firstDayStr = firstDayOfMonth.toISOString().split('T')[0];
+
+            const startDateInput = form.querySelector('input[name="start_date"]');
+            const endDateInput = form.querySelector('input[name="end_date"]');
+            
+            if (startDateInput) startDateInput.value = firstDayStr;
+            if (endDateInput) endDateInput.value = todayStr;
+        }
+
+        // 获取报表标题
+        function getReportTitle(reportType) {
+            const titles = {
+                'supplier-reconciliation': '供应商对账表',
+                'customer-reconciliation': '客户对账单',
+                'inventory-report': '库存报表',
+                'sales-report': '销售报表',
+                'purchase-report': '采购报表'
+            };
+            return titles[reportType] || '报表';
+        }
+
+        // 显示错误消息
+        function showError(message, containerId) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = `<div class="error-message">❌ ${message}</div>`;
+        }
+
+        // 显示成功消息
+        function showSuccess(message, containerId) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = `<div class="success-message">✅ ${message}</div>`;
+        }        //
+ 显示报表数据
+        function displayReportData(reportType, data) {
+            const containerId = reportType.replace('-', '-') + '-results';
+            const container = document.getElementById(containerId);
+            
+            if (!data || data.length === 0) {
+                container.innerHTML = '<div class="success-message">✅ 报表生成完成，但没有找到符合条件的数据。</div>';
+                return;
+            }
+
+            let html = `<div class="success-message">✅ 报表生成完成，共 ${data.length} 条记录</div>`;
+            html += '<table class="data-table"><thead><tr>';
+
+            // 根据报表类型生成表头
+            const headers = getTableHeaders(reportType);
+            headers.forEach(header => {
+                html += `<th>${header}</th>`;
+            });
+            html += '</tr></thead><tbody>';
+
+            // 生成数据行
+            data.forEach(row => {
+                html += '<tr>';
+                const values = getTableValues(reportType, row);
+                values.forEach(value => {
+                    html += `<td>${value}</td>`;
+                });
+                html += '</tr>';
+            });
+
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        // 获取表头
+        function getTableHeaders(reportType) {
+            const headers = {
+                'supplier-reconciliation': ['供应商名称', '采购金额', '付款金额', '应付余额', '采购笔数', '付款笔数', '状态'],
+                'customer-reconciliation': ['客户名称', '销售金额', '收款金额', '应收余额', '销售笔数', '收款笔数', '状态'],
+                'inventory-report': ['产品编码', '产品名称', '当前库存', '单价', '库存价值', '库存状态'],
+                'sales-report': ['产品编码', '产品名称', '销售数量', '销售金额', '销售次数', '客户数', '销售趋势'],
+                'purchase-report': ['产品编码', '产品名称', '采购数量', '采购金额', '采购次数', '供应商数', '采购频率']
+            };
+            return headers[reportType] || [];
+        }
+
+        // 获取表格值
+        function getTableValues(reportType, row) {
+            switch (reportType) {
+                case 'supplier-reconciliation':
+                    return [
+                        row.supplier_name || '',
+                        formatCurrency(row.total_purchase_amount),
+                        formatCurrency(row.total_payment_amount),
+                        formatCurrency(row.balance),
+                        row.purchase_count || 0,
+                        row.payment_count || 0,
+                        row.status || ''
+                    ];
+                case 'customer-reconciliation':
+                    return [
+                        row.customer_name || '',
+                        formatCurrency(row.total_sales_amount),
+                        formatCurrency(row.total_receipt_amount),
+                        formatCurrency(row.balance),
+                        row.sales_count || 0,
+                        row.receipt_count || 0,
+                        row.status || ''
+                    ];
+                case 'inventory-report':
+                    return [
+                        row.product_code || '',
+                        row.product_name || '',
+                        row.current_stock || 0,
+                        formatCurrency(row.unit_price),
+                        formatCurrency(row.stock_value),
+                        row.stock_status || ''
+                    ];
+                case 'sales-report':
+                    return [
+                        row.product_code || '',
+                        row.product_name || '',
+                        row.total_quantity || 0,
+                        formatCurrency(row.total_amount),
+                        row.sales_count || 0,
+                        row.customer_count || 0,
+                        row.sales_trend || ''
+                    ];
+                case 'purchase-report':
+                    return [
+                        row.product_code || '',
+                        row.product_name || '',
+                        row.total_quantity || 0,
+                        formatCurrency(row.total_amount),
+                        row.purchase_count || 0,
+                        row.supplier_count || 0,
+                        row.purchase_frequency || ''
+                    ];
+                default:
+                    return [];
+            }
+        }
+
+        // 格式化货币
+        function formatCurrency(amount) {
+            if (amount === null || amount === undefined) return '¥0.00';
+            return '¥' + parseFloat(amount).toFixed(2);
+        }     
+   // 监听来自VSCode的消息
+        window.addEventListener('message', event => {
+            const message = event.data;
+            
+            switch (message.command) {
+                case 'asyncReportStarted':
+                    currentTaskId = message.taskId;
+                    showLoading(`正在生成${getReportTitle(message.reportType)}...`, '任务已启动，正在处理...');
+                    
+                    // 开始轮询进度
+                    progressInterval = setInterval(() => {
+                        vscode.postMessage({
+                            command: 'getReportProgress',
+                            taskId: currentTaskId
+                        });
+                    }, 1000);
+                    break;
+
+                case 'reportProgress':
+                    if (message.taskId === currentTaskId) {
+                        updateProgress(message.progress, message.message || '');
+                        
+                        if (message.status === 'completed') {
+                            // 任务完成，获取结果
+                            vscode.postMessage({
+                                command: 'getReportResult',
+                                taskId: currentTaskId
+                            });
+                        } else if (message.status === 'failed') {
+                            hideLoading();
+                            showError(`报表生成失败: ${message.error || '未知错误'}`, 
+                                     message.reportType.replace('-', '-') + '-results');
+                            currentTaskId = null;
+                        }
+                    }
+                    break;
+
+                case 'reportResult':
+                    if (message.taskId === currentTaskId) {
+                        hideLoading();
+                        if (message.success) {
+                            displayReportData(message.reportType, message.data);
+                        } else {
+                            showError(`获取报表结果失败: ${message.error || '未知错误'}`, 
+                                     message.reportType.replace('-', '-') + '-results');
+                        }
+                        currentTaskId = null;
+                    }
+                    break;
+
+                case 'reportCancelled':
+                    if (message.taskId === currentTaskId) {
+                        hideLoading();
+                        showError('报表生成已取消', 
+                                 message.reportType ? message.reportType.replace('-', '-') + '-results' : 'supplier-results');
+                        currentTaskId = null;
+                    }
+                    break;
+
+                case 'error':
+                    hideLoading();
+                    showError(`系统错误: ${message.message}`, 'supplier-results');
+                    currentTaskId = null;
+                    break;
+
+                default:
+                    console.log('未知消息类型:', message.command);
+                    break;
+            }
+        });
+
+        // 重试功能
+        function retryReport(reportType, params) {
+            showLoading(`重新生成${getReportTitle(reportType)}...`);
+            
+            vscode.postMessage({
+                command: 'generateAsyncReport',
+                reportType: reportType,
+                params: params
+            });
+        }
+
+        // 导出功能
+        function exportReport(reportType) {
+            vscode.postMessage({
+                command: 'exportReport',
+                reportType: reportType
+            });
+        }
+
+        // 页面卸载时清理
+        window.addEventListener('beforeunload', function() {
+            if (currentTaskId) {
+                vscode.postMessage({
+                    command: 'cancelAsyncReport',
+                    taskId: currentTaskId
+                });
+            }
+        });
+    </script>
+</body>
+</html>

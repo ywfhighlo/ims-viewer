@@ -17,13 +17,15 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from scripts.enhanced_logger import EnhancedLogger
 from scripts.db_connection import get_database_connection
+from scripts.query_optimizer import QueryOptimizer
+from scripts.cache_manager import cache_report_data, get_cache_manager
 
 def generate_supplier_reconciliation(start_date: Optional[str] = None, 
                                    end_date: Optional[str] = None,
                                    supplier_name: Optional[str] = None,
                                    logger: Optional[EnhancedLogger] = None) -> List[Dict[str, Any]]:
     """
-    生成供应商对账表（优化版本 - 使用聚合查询提升性能）
+    生成供应商对账表（使用查询优化引擎和缓存系统）
     
     Args:
         start_date: 开始日期 (YYYY-MM-DD格式)
@@ -38,145 +40,27 @@ def generate_supplier_reconciliation(start_date: Optional[str] = None,
         logger = EnhancedLogger("supplier_reconciliation")
     
     try:
-        db = get_database_connection()
-        logger.info("开始生成供应商对账表（优化版本）")
+        logger.info("开始生成供应商对账表（使用查询优化引擎和缓存系统）")
         
-        # 构建日期过滤条件
-        date_filter = {}
-        if start_date:
-            date_filter['$gte'] = start_date
-        if end_date:
-            date_filter['$lte'] = end_date
+        # 构建查询参数
+        params = {
+            'start_date': start_date,
+            'end_date': end_date,
+            'supplier_name': supplier_name
+        }
         
-        # 1. 构建采购数据聚合管道
-        purchase_pipeline = [{'$match': {}}]
+        # 使用缓存装饰器，自动处理缓存逻辑
+        def data_generator():
+            optimizer = QueryOptimizer(logger)
+            return optimizer.optimize_supplier_reconciliation_query(params)
         
-        # 添加日期过滤
-        if date_filter:
-            purchase_pipeline[0]['$match']['inbound_date'] = date_filter
-        
-        # 添加供应商过滤
-        if supplier_name:
-            purchase_pipeline[0]['$match']['supplier_name'] = supplier_name
-        
-        # 聚合采购数据
-        purchase_pipeline.extend([
-            {
-                '$group': {
-                    '_id': '$supplier_name',
-                    'total_purchase_amount': {'$sum': '$amount'},
-                    'purchase_count': {'$sum': 1},
-                    'latest_purchase_date': {'$max': '$inbound_date'}
-                }
-            }
-        ])
-        
-        purchase_inbound = db['purchase_inbound']
-        purchase_aggregated = list(purchase_inbound.aggregate(purchase_pipeline))
-        purchase_dict = {item['_id']: item for item in purchase_aggregated}
-        
-        # 2. 构建付款数据聚合管道
-        payment_pipeline = [{'$match': {}}]
-        
-        # 添加日期过滤
-        if date_filter:
-            payment_pipeline[0]['$match']['payment_date'] = date_filter
-        
-        # 添加供应商过滤
-        if supplier_name:
-            payment_pipeline[0]['$match']['supplier_name'] = supplier_name
-        
-        # 聚合付款数据
-        payment_pipeline.extend([
-            {
-                '$group': {
-                    '_id': '$supplier_name',
-                    'total_payment_amount': {'$sum': '$amount'},
-                    'payment_count': {'$sum': 1},
-                    'latest_payment_date': {'$max': '$payment_date'}
-                }
-            }
-        ])
-        
-        payment_details = db['payment_details']
-        payment_aggregated = list(payment_details.aggregate(payment_pipeline))
-        payment_dict = {item['_id']: item for item in payment_aggregated}
-        
-        # 3. 获取所有涉及的供应商名称
-        all_supplier_names = set(purchase_dict.keys()) | set(payment_dict.keys())
-        
-        if not all_supplier_names:
-            logger.info("没有找到相关的采购或付款数据")
-            return []
-        
-        logger.info(f"聚合查询完成: 采购数据 {len(purchase_dict)} 条, 付款数据 {len(payment_dict)} 条, 涉及供应商 {len(all_supplier_names)} 个")
-        
-        # 4. 批量获取供应商基础信息（仅查询需要的供应商）
-        suppliers_collection = db['suppliers']
-        suppliers_query = {'supplier_name': {'$in': list(all_supplier_names)}}
-        suppliers = list(suppliers_collection.find(suppliers_query, {'_id': 0}))
-        suppliers_dict = {supplier.get('supplier_name'): supplier for supplier in suppliers if supplier.get('supplier_name')}
-        
-        # 5. 构建对账表数据
-        reconciliation_data = []
-        
-        for supplier_name_key in all_supplier_names:
-            if not supplier_name_key:
-                continue
-            
-            # 获取供应商基础信息
-            supplier_info = suppliers_dict.get(supplier_name_key, {})
-            
-            # 获取聚合后的采购数据
-            purchase_data = purchase_dict.get(supplier_name_key, {})
-            total_purchase_amount = purchase_data.get('total_purchase_amount', 0) or 0
-            purchase_count = purchase_data.get('purchase_count', 0) or 0
-            latest_purchase_date = purchase_data.get('latest_purchase_date')
-            
-            # 获取聚合后的付款数据
-            payment_data = payment_dict.get(supplier_name_key, {})
-            total_payment_amount = payment_data.get('total_payment_amount', 0) or 0
-            payment_count = payment_data.get('payment_count', 0) or 0
-            latest_payment_date = payment_data.get('latest_payment_date')
-            
-            # 计算应付账款余额
-            balance = total_purchase_amount - total_payment_amount
-            
-            # 处理日期字段，确保可以JSON序列化
-            latest_purchase_str = None
-            if latest_purchase_date:
-                if isinstance(latest_purchase_date, datetime):
-                    latest_purchase_str = latest_purchase_date.strftime('%Y-%m-%d')
-                else:
-                    latest_purchase_str = str(latest_purchase_date)[:10]
-            
-            latest_payment_str = None
-            if latest_payment_date:
-                if isinstance(latest_payment_date, datetime):
-                    latest_payment_str = latest_payment_date.strftime('%Y-%m-%d')
-                else:
-                    latest_payment_str = str(latest_payment_date)[:10]
-            
-            reconciliation_record = {
-                'supplier_name': supplier_name_key,
-                'supplier_credit_code': supplier_info.get('credit_code', ''),
-                'supplier_contact': supplier_info.get('contact_person', ''),
-                'supplier_phone': supplier_info.get('phone', ''),
-                'total_purchase_amount': round(total_purchase_amount, 2),
-                'total_payment_amount': round(total_payment_amount, 2),
-                'balance': round(balance, 2),
-                'purchase_count': purchase_count,
-                'payment_count': payment_count,
-                'latest_purchase_date': latest_purchase_str,
-                'latest_payment_date': latest_payment_str,
-                'status': '正常' if balance >= 0 else '超付',
-                'generated_date': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            }
-            
-            reconciliation_data.append(reconciliation_record)
-        
-        # 按余额降序排序
-        reconciliation_data.sort(key=lambda x: x['balance'], reverse=True)
+        # 使用缓存系统，TTL设置为5分钟（300秒）
+        reconciliation_data = cache_report_data(
+            view_name='supplier_reconciliation',
+            params=params,
+            data_generator=data_generator,
+            ttl=300
+        )
         
         logger.info(f"供应商对账表生成完成，共 {len(reconciliation_data)} 条记录")
         return reconciliation_data

@@ -14,7 +14,7 @@ from vscode_config_reader import get_data_directory
 
 # --- 配置 ---
 MONGO_URI = "mongodb://localhost:27017/"
-DATABASE_NAME = os.environ.get('IMS_DB_NAME', 'ims_viewer')
+DATABASE_NAME = os.environ.get('IMS_DB_NAME', 'ims_database')
 MATERIALS_COLLECTION = "materials"
 # EXCEL_FILE将在运行时动态获取
 SHEET_NAME = "进货入库明细表"

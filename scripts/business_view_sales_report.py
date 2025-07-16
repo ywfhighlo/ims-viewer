@@ -15,6 +15,8 @@ from db_connection import get_database_connection
 from error_handler import error_handler_decorator, safe_execute, global_error_handler
 from enhanced_logger import get_logger
 from data_utils import DataValidator, DataFormatter, ReportDataProcessor
+from query_optimizer import QueryOptimizer
+from cache_manager import cache_report_data, get_cache_manager
 
 # 数据库连接函数已移至 db_connection 模块
 
@@ -23,7 +25,7 @@ def generate_sales_report(start_date: Optional[str] = None,
                          customer_name: Optional[str] = None,
                          product_name: Optional[str] = None) -> List[Dict[str, Any]]:
     """
-    生成销售统计报表（优化版本 - 使用聚合查询提升性能）
+    生成销售统计报表（使用查询优化引擎和缓存系统）
     
     Args:
         start_date: 开始日期
@@ -37,97 +39,31 @@ def generate_sales_report(start_date: Optional[str] = None,
     logger = EnhancedLogger("sales_report")
     
     try:
-        db = get_database_connection()
-        logger.info("开始生成销售统计报表（优化版本）")
+        logger.info("开始生成销售统计报表（使用查询优化引擎和缓存系统）")
         
-        # 构建聚合管道
-        pipeline = []
+        # 构建查询参数
+        params = {
+            'start_date': start_date,
+            'end_date': end_date,
+            'customer_name': customer_name,
+            'product_name': product_name
+        }
         
-        # 1. 匹配阶段 - 构建过滤条件
-        match_conditions = {}
+        # 使用缓存装饰器，自动处理缓存逻辑
+        def data_generator():
+            optimizer = QueryOptimizer(logger)
+            return optimizer.optimize_sales_report_query(params)
         
-        # 日期范围筛选
-        if start_date or end_date:
-            date_query = {}
-            if start_date:
-                date_query['$gte'] = start_date
-            if end_date:
-                date_query['$lte'] = end_date
-            match_conditions['outbound_date'] = date_query
-            
-        # 客户名称筛选
-        if customer_name:
-            match_conditions['customer_name'] = {'$regex': customer_name, '$options': 'i'}
-            
-        # 产品名称筛选
-        if product_name:
-            match_conditions['material_name'] = {'$regex': product_name, '$options': 'i'}
-            
-        if match_conditions:
-            pipeline.append({'$match': match_conditions})
-            
-        logger.info(f"查询条件: {match_conditions}")
+        # 使用缓存系统，TTL设置为5分钟（300秒）
+        report_data = cache_report_data(
+            view_name='sales_report',
+            params=params,
+            data_generator=data_generator,
+            ttl=300
+        )
         
-        # 2. 分组聚合阶段
-        pipeline.append({
-            '$group': {
-                '_id': {
-                    'material_code': '$material_code',
-                    'material_name': '$material_name'
-                },
-                'product_model': {'$first': '$specification'},
-                'unit': {'$first': '$unit'},
-                'total_quantity': {'$sum': '$quantity'},
-                'total_amount': {'$sum': '$outbound_amount'},
-                'sales_count': {'$sum': 1},
-                'customers': {'$addToSet': '$customer_name'},
-                'latest_sale_date': {'$max': '$outbound_date'}
-            }
-        })
-        
-        # 3. 投影阶段 - 计算衍生字段
-        pipeline.append({
-            '$project': {
-                'product_code': '$_id.material_code',
-                'product_name': '$_id.material_name',
-                'product_model': 1,
-                'unit': 1,
-                'total_quantity': 1,
-                'total_amount': 1,
-                'sales_count': 1,
-                'customer_count': {'$size': '$customers'},
-                'latest_sale_date': 1,
-                'avg_unit_price': {
-                    '$cond': {
-                        'if': {'$gt': ['$total_quantity', 0]},
-                        'then': {'$divide': ['$total_amount', '$total_quantity']},
-                        'else': 0
-                    }
-                },
-                'sales_trend': {
-                    '$switch': {
-                        'branches': [
-                            {'case': {'$gte': ['$sales_count', 10]}, 'then': '热销'},
-                            {'case': {'$gte': ['$sales_count', 5]}, 'then': '正常'}
-                        ],
-                        'default': '滞销'
-                    }
-                },
-                'generated_date': {'$literal': datetime.now().isoformat()},
-                '_id': 0
-            }
-        })
-        
-        # 4. 排序阶段 - 按销售金额降序
-        pipeline.append({'$sort': {'total_amount': -1}})
-        
-        # 执行聚合查询
-        sales_collection = db['sales_outbound']
-        report_data = list(sales_collection.aggregate(pipeline))
-        
-        logger.info(f"聚合查询完成，生成销售统计报表，共 {len(report_data)} 个产品")
+        logger.info(f"销售统计报表生成完成，共 {len(report_data)} 个产品")
         return report_data
-
         
     except Exception as e:
         logger.error(f"生成销售统计报表失败: {str(e)}")

@@ -253,7 +253,12 @@ export class MaterialWebviewProvider {
         try {
             const { stdout, stderr } = await execAsync(cmd, {
                 cwd: workspaceFolder.uri.fsPath,
-                timeout: 30000 // 30秒超时
+                timeout: 30000, // 30秒超时
+                encoding: 'utf8', // 明确指定UTF-8编码
+                env: {
+                    ...process.env,
+                    PYTHONIOENCODING: 'utf-8' // 确保Python使用UTF-8编码
+                }
             });
             
             if (stderr) {

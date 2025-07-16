@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import os
 from pymongo import MongoClient
 
 def check_supplier_names():
     client = MongoClient('mongodb://localhost:27017/')
-    db_name = os.environ.get('IMS_DB_NAME', 'ims_viewer')
-db = client[db_name]
+    db_name = os.environ.get('IMS_DB_NAME', 'ims_database')
+    db = client[db_name]
     
     # 获取供应商表中的名称
     suppliers = list(db['suppliers'].find({}, {'supplier_name': 1}).limit(10))

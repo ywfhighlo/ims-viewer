@@ -1,0 +1,32 @@
+[
+  {
+    "test_case": "全部数据",
+    "simple_duration": 30.176616430282593,
+    "simple_count": 0,
+    "simple_success": true,
+    "optimized_duration": 30.150862455368042,
+    "optimized_count": 0,
+    "optimized_success": true,
+    "performance_ratio": 0.9991465585621884
+  },
+  {
+    "test_case": "指定供应商",
+    "simple_duration": 30.157278299331665,
+    "simple_count": 0,
+    "simple_success": true,
+    "optimized_duration": 30.14503526687622,
+    "optimized_count": 0,
+    "optimized_success": true,
+    "performance_ratio": 0.9995940272748116
+  },
+  {
+    "test_case": "指定日期范围",
+    "simple_duration": 30.18357014656067,
+    "simple_count": 0,
+    "simple_success": true,
+    "optimized_duration": 30.102055549621582,
+    "optimized_count": 0,
+    "optimized_success": true,
+    "performance_ratio": 0.9972993719250811
+  }
+]

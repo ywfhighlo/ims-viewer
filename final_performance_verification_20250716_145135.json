@@ -1,0 +1,50 @@
+[
+  {
+    "name": "供应商对账表",
+    "script": "business_view_supplier_reconciliation.py",
+    "execution_time": 0.14470148086547852,
+    "record_count": 2,
+    "performance_grade": "良好",
+    "success": true
+  },
+  {
+    "name": "供应商对账表（简化版）",
+    "script": "business_view_supplier_reconciliation_simple.py",
+    "execution_time": 0.008130550384521484,
+    "record_count": 2,
+    "performance_grade": "优秀",
+    "success": true
+  },
+  {
+    "name": "客户对账单",
+    "script": "business_view_customer_reconciliation.py",
+    "execution_time": 0.023871183395385742,
+    "record_count": 111,
+    "performance_grade": "优秀",
+    "success": true
+  },
+  {
+    "name": "库存盘点报表",
+    "script": "business_view_inventory_report.py",
+    "execution_time": 0.026099205017089844,
+    "record_count": 50,
+    "performance_grade": "优秀",
+    "success": true
+  },
+  {
+    "name": "销售报表",
+    "script": "business_view_sales_report.py",
+    "execution_time": 0.008318185806274414,
+    "record_count": 4,
+    "performance_grade": "优秀",
+    "success": true
+  },
+  {
+    "name": "采购报表",
+    "script": "business_view_purchase_report.py",
+    "execution_time": 0.02541971206665039,
+    "record_count": 5,
+    "performance_grade": "优秀",
+    "success": true
+  }
+]
