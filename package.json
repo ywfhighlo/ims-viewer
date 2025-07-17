@@ -21,13 +21,6 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [
-    "onStartupFinished",
-    "onCommand:ims.convertToJson",
-    "onCommand:ims.showInventoryManagement",
-    "onCommand:ims.showMaterialManagement",
-    "onCommand:ims.showDataEntry"
-  ],
   "main": "./out/extension.js",
   "contributes": {
     "viewsContainers": {
@@ -51,41 +44,55 @@
     "commands": [
       {
         "command": "ims.convertToJson",
-        "title": "Excel转为JSON",
-        "category": "IMS Viewer"
+        "title": "IMS: Excel转为JSON",
+        "category": "IMS Viewer",
+        "icon": "$(file-code)"
       },
       {
         "command": "ims.migrateToNewFormat",
-        "title": "完整数据迁移流程",
-        "category": "IMS Viewer"
+        "title": "IMS: 完整数据迁移流程",
+        "category": "IMS Viewer",
+        "icon": "$(sync)"
       },
       {
         "command": "ims.addMaterial",
-        "title": "添加物料",
+        "title": "IMS: 添加物料",
         "category": "IMS Viewer",
         "icon": "$(add)"
       },
       {
         "command": "ims.showMaterialManagement",
-        "title": "打开物料管理",
+        "title": "IMS: 打开物料管理",
         "category": "IMS Viewer",
         "icon": "$(package)"
       },
       {
         "command": "ims.showDataEntry",
-        "title": "数据录入管理",
+        "title": "IMS: 打开数据录入",
         "category": "IMS Viewer",
         "icon": "$(edit)"
       },
       {
         "command": "ims.showInventoryManagement",
-        "title": "进销存管理",
+        "title": "IMS: 打开进销存管理",
         "category": "IMS Viewer",
         "icon": "$(archive)"
       },
       {
+        "command": "ims-viewer.showCustomerManagement",
+        "title": "IMS: 打开客户管理",
+        "category": "IMS Viewer",
+        "icon": "$(account)"
+      },
+      {
+        "command": "ims-viewer.showSupplierManagement",
+        "title": "IMS: 打开供应商管理",
+        "category": "IMS Viewer",
+        "icon": "$(organization)"
+      },
+      {
         "command": "ims.openSettings",
-        "title": "打开IMS设置",
+        "title": "IMS: 打开设置",
         "category": "IMS Viewer",
         "icon": "$(settings-gear)"
       }

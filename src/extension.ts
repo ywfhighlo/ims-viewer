@@ -6,7 +6,8 @@ import { spawn } from 'child_process';
 import { ImsTreeDataProvider } from './treeDataProvider';
 import { MaterialWebviewProvider } from './materialWebviewProvider';
 import { DataEntryWebviewProvider } from './dataEntryWebviewProvider';
-
+import { CustomerManagementWebviewProvider } from './customerManagementWebviewProvider';
+import { SupplierManagementWebviewProvider } from './supplierManagementWebviewProvider';
 
 let outputChannel: vscode.OutputChannel;
 
@@ -111,10 +112,13 @@ function handleInventoryAction(context: vscode.ExtensionContext, panel: vscode.W
     vscode.window.showInformationMessage(`收到库存管理操作: ${message.action}`);
 }
 
+// ... (rest of the code remains the same)
+
 export function activate(context: vscode.ExtensionContext) {
-    // 创建一个输出通道，用于显示脚本的详细日志
+    // 1. Create an output channel for detailed logs
     outputChannel = vscode.window.createOutputChannel("IMS Import Logs");
 
+    // 2. Register file-based commands
     const convertToJsonCommand = vscode.commands.registerCommand('ims.convertToJson', (uri: vscode.Uri) => {
         if (!uri) {
             vscode.window.showErrorMessage('请在文件浏览器中右键点击一个Excel文件来执行此命令。');
@@ -133,30 +137,32 @@ export function activate(context: vscode.ExtensionContext) {
         runMigrationProcess(context, excelPath);
     });
 
-    context.subscriptions.push(convertToJsonCommand, migrateCommand);
-
-    // 注册Tree View
+    // 3. Register the Tree View provider
     const imsProvider = new ImsTreeDataProvider(context);
     vscode.window.registerTreeDataProvider('ims-viewer', imsProvider);
 
-    // 注册物料管理功能
+    // 4. Register Webview Providers and their commands
     const materialProvider = new MaterialWebviewProvider(context);
     const showMaterialManagementCommand = vscode.commands.registerCommand('ims.showMaterialManagement', () => {
         materialProvider.show();
     });
     
-    // 注册数据录入功能
     const dataEntryProvider = new DataEntryWebviewProvider(context);
     const showDataEntryCommand = vscode.commands.registerCommand('ims.showDataEntry', () => {
         dataEntryProvider.show();
     });
-    
-    // 注册进销存管理功能 - 现在通过业务视图面板访问
-    const showInventoryManagementCommand = vscode.commands.registerCommand('ims.showInventoryManagement', () => {
-        showInventoryManagementPanel(context);
+
+    const customerManagementProvider = new CustomerManagementWebviewProvider(context);
+    const showCustomerManagementCommand = vscode.commands.registerCommand('ims-viewer.showCustomerManagement', () => {
+        customerManagementProvider.show();
     });
-    
-    // 注册命令
+
+    const supplierManagementProvider = new SupplierManagementWebviewProvider(context);
+    const showSupplierManagementCommand = vscode.commands.registerCommand('ims-viewer.showSupplierManagement', () => {
+        supplierManagementProvider.show();
+    });
+
+    // 5. Register other utility and view commands
     const refreshCommand = vscode.commands.registerCommand('ims.refreshTreeView', () => {
         imsProvider.refresh();
     });
@@ -185,20 +191,26 @@ export function activate(context: vscode.ExtensionContext) {
     const openSettingsCommand = vscode.commands.registerCommand('ims.openSettings', () => {
         vscode.commands.executeCommand('workbench.action.openSettings', 'imsViewer');
     });
-    
-    // 注册物料管理功能
-    // registerMaterialCommands(context); // This line is removed as per the edit hint
-    
+
+    const showInventoryManagementCommand = vscode.commands.registerCommand('ims.showInventoryManagement', () => {
+        showInventoryManagementPanel(context);
+    });
+
+    // 6. Push all subscriptions
     context.subscriptions.push(
+        convertToJsonCommand,
+        migrateCommand,
         refreshCommand, 
         reconnectCommand, 
         testDbCommand, 
         showTableDataCommand, 
         showBusinessViewCommand, 
         addMaterialCommand,
-        showMaterialManagementCommand, // 添加新命令
-        showDataEntryCommand, // 添加数据录入命令
-        showInventoryManagementCommand, // 添加进销存管理命令
+        showMaterialManagementCommand, 
+        showDataEntryCommand, 
+        showInventoryManagementCommand, 
+        showCustomerManagementCommand,
+        showSupplierManagementCommand,
         openSettingsCommand
     );
 }

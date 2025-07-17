@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>供应商管理</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; margin: 20px; }
+        h1 { font-size: 24px; }
+        .toolbar { margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+        .toolbar input { padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        .toolbar button { padding: 8px 12px; border: none; border-radius: 4px; background-color: #007acc; color: white; cursor: pointer; margin-left: 10px; }
+        .toolbar button:hover { background-color: #005f99; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .pagination { margin-top: 20px; text-align: center; }
+        .pagination button { padding: 5px 10px; margin: 0 5px; }
+        .modal { display: none; position: fixed; z-index: 1; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); }
+        .modal-content { background-color: #fefefe; margin: 15% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 500px; border-radius: 8px; }
+        .close { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; }
+        .form-group input { width: calc(100% - 16px); padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h1>供应商管理</h1>
+
+    <div class="toolbar">
+        <div>
+            <input type="text" id="searchInput" placeholder="搜索供应商...">
+            <button id="searchButton">搜索</button>
+        </div>
+        <div>
+            <button id="batchDeleteButton">批量删除</button>
+            <button id="addButton">新增供应商</button>
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th><input type="checkbox" id="selectAllCheckbox"></th>
+                <th>名称</th>
+                <th>联系人</th>
+                <th>电话</th>
+                <th>地址</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody id="supplierTableBody"></tbody>
+    </table>
+
+    <div class="pagination">
+        <button id="prevPage">上一页</button>
+        <span id="pageInfo"></span>
+        <button id="nextPage">下一页</button>
+    </div>
+
+    <!-- Modal for Add/Edit Supplier -->
+    <div id="supplierModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2 id="modalTitle">新增供应商</h2>
+            <form id="supplierForm">
+                <input type="hidden" id="supplierId">
+                <div class="form-group">
+                    <label for="name">名称</label>
+                    <input type="text" id="name" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="contact_person">联系人</label>
+                    <input type="text" id="contact_person" name="contact_person">
+                </div>
+                <div class="form-group">
+                    <label for="phone">电话</label>
+                    <input type="text" id="phone" name="phone">
+                </div>
+                <div class="form-group">
+                    <label for="address">地址</label>
+                    <input type="text" id="address" name="address">
+                </div>
+                <button type="submit" id="saveButton">保存</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const vscode = acquireVsCodeApi();
+        let currentPage = 1;
+        const limit = 10;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadSuppliers();
+        });
+
+        function loadSuppliers(searchQuery = '') {
+            vscode.postMessage({ command: 'list', page: currentPage, limit, searchQuery });
+        }
+
+        window.addEventListener('message', event => {
+            const message = event.data;
+            if (message.command === 'updateList') {
+                const { data, total, page, limit } = message.data;
+                const tableBody = document.getElementById('supplierTableBody');
+                tableBody.innerHTML = '';
+                data.forEach(supplier => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td><input type="checkbox" class="row-checkbox" value="${supplier._id}"></td>
+                        <td>${supplier.name}</td>
+                        <td>${supplier.contact_person || ''}</td>
+                        <td>${supplier.phone || ''}</td>
+                        <td>${supplier.address || ''}</td>
+                        <td>
+                            <button onclick="editSupplier('${supplier._id}', '${supplier.name}', '${supplier.contact_person || ''}', '${supplier.phone || ''}', '${supplier.address || ''}')">编辑</button>
+                            <button onclick="deleteSupplier('${supplier._id}')">删除</button>
+                        </td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+                updatePagination(total, page, limit);
+            }
+        });
+
+        document.getElementById('searchButton').addEventListener('click', () => {
+            currentPage = 1;
+            const searchQuery = document.getElementById('searchInput').value;
+            loadSuppliers(searchQuery);
+        });
+
+        document.getElementById('addButton').addEventListener('click', () => {
+            openModal('新增供应商');
+        });
+
+        document.querySelector('.close').addEventListener('click', () => {
+            closeModal();
+        });
+
+        document.getElementById('supplierForm').addEventListener('submit', event => {
+            event.preventDefault();
+            const supplierId = document.getElementById('supplierId').value;
+            const supplierData = {
+                name: document.getElementById('name').value,
+                contact_person: document.getElementById('contact_person').value,
+                phone: document.getElementById('phone').value,
+                address: document.getElementById('address').value
+            };
+
+            if (supplierId) {
+                vscode.postMessage({ command: 'update', id: supplierId, data: supplierData });
+            } else {
+                vscode.postMessage({ command: 'add', data: supplierData });
+            }
+            closeModal();
+        });
+
+        function editSupplier(id, name, contact_person, phone, address) {
+            openModal('编辑供应商', { id, name, contact_person, phone, address });
+        }
+
+        function deleteSupplier(id) {
+            if (confirm('确定要删除此供应商吗？')) {
+                vscode.postMessage({ command: 'delete', id });
+            }
+        }
+
+        document.getElementById('batchDeleteButton').addEventListener('click', () => {
+            const selectedIds = Array.from(document.querySelectorAll('.row-checkbox:checked')).map(cb => cb.value);
+            if (selectedIds.length > 0 && confirm(`确定要删除选中的 ${selectedIds.length} 个供应商吗？`)) {
+                vscode.postMessage({ command: 'batch_delete', ids: selectedIds });
+            }
+        });
+
+        document.getElementById('selectAllCheckbox').addEventListener('change', (e) => {
+            document.querySelectorAll('.row-checkbox').forEach(checkbox => {
+                checkbox.checked = e.target.checked;
+            });
+        });
+
+        function openModal(title, supplier = null) {
+            const modal = document.getElementById('supplierModal');
+            document.getElementById('modalTitle').innerText = title;
+            document.getElementById('supplierId').value = supplier ? supplier.id : '';
+            document.getElementById('name').value = supplier ? supplier.name : '';
+            document.getElementById('contact_person').value = supplier ? supplier.contact_person : '';
+            document.getElementById('phone').value = supplier ? supplier.phone : '';
+            document.getElementById('address').value = supplier ? supplier.address : '';
+            modal.style.display = 'block';
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('supplierModal');
+            modal.style.display = 'none';
+            document.getElementById('supplierForm').reset();
+            document.getElementById('supplierId').value = '';
+        }
+
+        function updatePagination(total, page, limit) {
+            const pageInfo = document.getElementById('pageInfo');
+            const totalPages = Math.ceil(total / limit);
+            pageInfo.textContent = `第 ${page} 页 / 共 ${totalPages} 页 (共 ${total} 条)`;
+
+            document.getElementById('prevPage').disabled = page <= 1;
+            document.getElementById('nextPage').disabled = page >= totalPages;
+        }
+
+        document.getElementById('prevPage').addEventListener('click', () => {
+            if (currentPage > 1) {
+                currentPage--;
+                loadSuppliers(document.getElementById('searchInput').value);
+            }
+        });
+
+        document.getElementById('nextPage').addEventListener('click', () => {
+            currentPage++;
+            loadSuppliers(document.getElementById('searchInput').value);
+        });
+
+    </script>
+</body>
+</html>
