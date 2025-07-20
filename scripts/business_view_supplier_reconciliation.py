@@ -98,7 +98,33 @@ def main():
         
         # 输出结果
         if output_format.lower() == 'json':
-            print(json.dumps(reconciliation_data, ensure_ascii=False, indent=2))
+            # 构建标准的响应结构
+            result = {
+                'success': True,
+                'data': reconciliation_data,
+                'report_type': 'supplier_reconciliation',
+                'generated_at': datetime.now().isoformat(),
+                'query_params': {
+                    'start_date': start_date,
+                    'end_date': end_date,
+                    'supplier_name': supplier_name
+                }
+            }
+            
+            # 添加统计信息
+            if reconciliation_data:
+                total_purchase = sum(record.get('total_purchase_amount', 0) for record in reconciliation_data)
+                total_payment = sum(record.get('total_payment_amount', 0) for record in reconciliation_data)
+                total_balance = sum(record.get('balance', 0) for record in reconciliation_data)
+                
+                result['statistics'] = {
+                    'total_suppliers': len(reconciliation_data),
+                    'total_purchase_amount': round(total_purchase, 2),
+                    'total_payment_amount': round(total_payment, 2),
+                    'total_balance': round(total_balance, 2)
+                }
+            
+            print(json.dumps(result, ensure_ascii=False, indent=2))
         else:
             # 表格格式输出
             print("\n=== 供应商对账表 ===")

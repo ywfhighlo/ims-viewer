@@ -103,7 +103,33 @@ def main():
         
         # 输出结果
         if output_format.lower() == 'json':
-            print(json.dumps(reconciliation_data, ensure_ascii=False, indent=2))
+            # 构建标准的响应结构
+            result = {
+                'success': True,
+                'data': reconciliation_data,
+                'report_type': 'customer_reconciliation',
+                'generated_at': datetime.now().isoformat(),
+                'query_params': {
+                    'start_date': start_date,
+                    'end_date': end_date,
+                    'customer_name': customer_name
+                }
+            }
+            
+            # 添加统计信息
+            if reconciliation_data:
+                total_sales = sum(record.get('total_sales_amount', 0) for record in reconciliation_data)
+                total_receipt = sum(record.get('total_receipt_amount', 0) for record in reconciliation_data)
+                total_balance = sum(record.get('balance', 0) for record in reconciliation_data)
+                
+                result['statistics'] = {
+                    'total_customers': len(reconciliation_data),
+                    'total_sales_amount': round(total_sales, 2),
+                    'total_receipt_amount': round(total_receipt, 2),
+                    'total_balance': round(total_balance, 2)
+                }
+            
+            print(json.dumps(result, ensure_ascii=False, indent=2))
         else:
             # 表格格式输出
             print("\n=== 客户对账单 ===")

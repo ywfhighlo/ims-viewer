@@ -283,7 +283,34 @@ def main():
             
             # 输出结果
             if output_format == 'json':
-                print(json.dumps(sales_data, ensure_ascii=False, indent=2))
+                # 构建标准的响应结构
+                result = {
+                    'success': True,
+                    'data': sales_data,
+                    'report_type': 'sales_report',
+                    'generated_at': datetime.now().isoformat(),
+                    'query_params': {
+                        'start_date': start_date,
+                        'end_date': end_date,
+                        'customer_name': customer_name,
+                        'material_code': material_code
+                    }
+                }
+                
+                # 添加统计信息
+                if sales_data:
+                    total_amount = sum(item.get('total_amount', 0) for item in sales_data)
+                    total_quantity = sum(item.get('total_quantity', 0) for item in sales_data)
+                    sales_count = sum(item.get('sales_count', 0) for item in sales_data)
+                    
+                    result['statistics'] = {
+                        'total_products': len(sales_data),
+                        'total_amount': round(total_amount, 2),
+                        'total_quantity': round(total_quantity, 2),
+                        'total_sales_count': sales_count
+                    }
+                
+                print(json.dumps(result, ensure_ascii=False, indent=2))
             else:
                 # 表格格式输出
                 print("\n=== 销售报表 ===")

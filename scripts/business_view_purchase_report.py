@@ -319,7 +319,34 @@ def main():
             
             # 输出结果
             if output_format == 'json':
-                print(json.dumps(purchase_data, ensure_ascii=False, indent=2))
+                # 构建标准的响应结构
+                result = {
+                    'success': True,
+                    'data': purchase_data,
+                    'report_type': 'purchase_report',
+                    'generated_at': datetime.now().isoformat(),
+                    'query_params': {
+                        'start_date': start_date,
+                        'end_date': end_date,
+                        'supplier_name': supplier_name,
+                        'material_code': material_code
+                    }
+                }
+                
+                # 添加统计信息
+                if purchase_data:
+                    total_amount = sum(item.get('total_amount', 0) for item in purchase_data)
+                    total_quantity = sum(item.get('total_quantity', 0) for item in purchase_data)
+                    purchase_count = sum(item.get('purchase_count', 0) for item in purchase_data)
+                    
+                    result['statistics'] = {
+                        'total_products': len(purchase_data),
+                        'total_amount': round(total_amount, 2),
+                        'total_quantity': round(total_quantity, 2),
+                        'total_purchase_count': purchase_count
+                    }
+                
+                print(json.dumps(result, ensure_ascii=False, indent=2))
             else:
                 # 表格格式输出
                 print("\n=== 采购报表 ===")
