@@ -1678,7 +1678,25 @@ function showInventoryManagementPanel(context: vscode.ExtensionContext) {
     // 处理来自webview的消息
     panel.webview.onDidReceiveMessage(
         async message => {
-            switch (message.command) {
+            switch (message.command || message.action) {
+                case 'load_inventory_data':
+                    await handleInventoryDataLoad(context, panel, message);
+                    break;
+                case 'load_purchase_orders':
+                    await handlePurchaseDataLoad(context, panel, message);
+                    break;
+                case 'load_sales_orders':
+                    await handleSalesDataLoad(context, panel, message);
+                    break;
+                case 'load_suppliers':
+                    await handleSuppliersLoad(context, panel, message);
+                    break;
+                case 'load_customers':
+                    await handleCustomersLoad(context, panel, message);
+                    break;
+                case 'load_materials':
+                    await handleMaterialsLoad(context, panel, message);
+                    break;
                 case 'runPython':
                     try {
                         const action = message.data;
@@ -2192,3 +2210,507 @@ async function runDataAnalysisScript(context: vscode.ExtensionContext, method: s
 }
 
 export function deactivate() {}
+
+// 处理库存数据加载
+async function handleInventoryDataLoad(context: vscode.ExtensionContext, panel: vscode.WebviewPanel, message: any) {
+    try {
+        const scriptsDir = path.join(context.extensionPath, 'scripts');
+        const scriptPath = path.join(scriptsDir, 'business_view_inventory_report.py');
+        const pythonCmd = getPythonCommand(context);
+        
+        // 设置数据库配置环境变量
+        setDatabaseConfigEnv();
+        
+        const args = ['--format', 'json'];
+        
+        // 获取当前工作区路径
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+        const workspacePath = workspaceFolder ? workspaceFolder.uri.fsPath : '';
+        
+        const pythonProcess = spawn(pythonCmd, [scriptPath, ...args], {
+            env: { 
+                ...process.env, 
+                PYTHONIOENCODING: 'utf-8',
+                IMS_WORKSPACE_PATH: workspacePath
+            }
+        });
+        
+        let stdoutData = '';
+        let errorOutput = '';
+        
+        pythonProcess.stdout.on('data', (data: Buffer) => {
+            stdoutData += data.toString();
+        });
+        
+        pythonProcess.stderr.on('data', (data: Buffer) => {
+            errorOutput += data.toString();
+        });
+        
+        pythonProcess.on('error', (err) => {
+            panel.webview.postMessage({
+                requestId: message.requestId,
+                success: false,
+                error: `无法启动库存报表脚本: ${err.message}`
+            });
+        });
+        
+        pythonProcess.on('close', (code: number) => {
+            if (code === 0) {
+                try {
+                    const result = JSON.parse(stdoutData.trim());
+                    if (result.success) {
+                        panel.webview.postMessage({
+                            requestId: message.requestId,
+                            success: true,
+                            data: result.data || []
+                        });
+                    } else {
+                        panel.webview.postMessage({
+                            requestId: message.requestId,
+                            success: false,
+                            error: result.error || '库存数据加载失败'
+                        });
+                    }
+                } catch (parseError) {
+                    panel.webview.postMessage({
+                        requestId: message.requestId,
+                        success: false,
+                        error: `数据解析失败: ${parseError}`
+                    });
+                }
+            } else {
+                panel.webview.postMessage({
+                    requestId: message.requestId,
+                    success: false,
+                    error: `库存数据加载失败: ${errorOutput || '未知错误'}`
+                });
+            }
+        });
+    } catch (error) {
+        panel.webview.postMessage({
+            requestId: message.requestId,
+            success: false,
+            error: `处理库存数据请求失败: ${error}`
+        });
+    }
+}
+
+// 处理采购数据加载
+async function handlePurchaseDataLoad(context: vscode.ExtensionContext, panel: vscode.WebviewPanel, message: any) {
+    try {
+        const scriptsDir = path.join(context.extensionPath, 'scripts');
+        const scriptPath = path.join(scriptsDir, 'business_view_purchase_report.py');
+        const pythonCmd = getPythonCommand(context);
+        
+        // 设置数据库配置环境变量
+        setDatabaseConfigEnv();
+        
+        const args = ['--format', 'json'];
+        
+        // 获取当前工作区路径
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+        const workspacePath = workspaceFolder ? workspaceFolder.uri.fsPath : '';
+        
+        const pythonProcess = spawn(pythonCmd, [scriptPath, ...args], {
+            env: { 
+                ...process.env, 
+                PYTHONIOENCODING: 'utf-8',
+                IMS_WORKSPACE_PATH: workspacePath
+            }
+        });
+        
+        let stdoutData = '';
+        let errorOutput = '';
+        
+        pythonProcess.stdout.on('data', (data: Buffer) => {
+            stdoutData += data.toString();
+        });
+        
+        pythonProcess.stderr.on('data', (data: Buffer) => {
+            errorOutput += data.toString();
+        });
+        
+        pythonProcess.on('error', (err) => {
+            panel.webview.postMessage({
+                requestId: message.requestId,
+                success: false,
+                error: `无法启动采购报表脚本: ${err.message}`
+            });
+        });
+        
+        pythonProcess.on('close', (code: number) => {
+            if (code === 0) {
+                try {
+                    const result = JSON.parse(stdoutData.trim());
+                    if (result.success) {
+                        panel.webview.postMessage({
+                            requestId: message.requestId,
+                            success: true,
+                            data: result.data || []
+                        });
+                    } else {
+                        panel.webview.postMessage({
+                            requestId: message.requestId,
+                            success: false,
+                            error: result.error || '采购数据加载失败'
+                        });
+                    }
+                } catch (parseError) {
+                    panel.webview.postMessage({
+                        requestId: message.requestId,
+                        success: false,
+                        error: `数据解析失败: ${parseError}`
+                    });
+                }
+            } else {
+                panel.webview.postMessage({
+                    requestId: message.requestId,
+                    success: false,
+                    error: `采购数据加载失败: ${errorOutput || '未知错误'}`
+                });
+            }
+        });
+    } catch (error) {
+        panel.webview.postMessage({
+            requestId: message.requestId,
+            success: false,
+            error: `处理采购数据请求失败: ${error}`
+        });
+    }
+}
+
+// 处理销售数据加载
+async function handleSalesDataLoad(context: vscode.ExtensionContext, panel: vscode.WebviewPanel, message: any) {
+    try {
+        const scriptsDir = path.join(context.extensionPath, 'scripts');
+        const scriptPath = path.join(scriptsDir, 'business_view_sales_report.py');
+        const pythonCmd = getPythonCommand(context);
+        
+        // 设置数据库配置环境变量
+        setDatabaseConfigEnv();
+        
+        const args = ['--format', 'json'];
+        
+        // 获取当前工作区路径
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+        const workspacePath = workspaceFolder ? workspaceFolder.uri.fsPath : '';
+        
+        const pythonProcess = spawn(pythonCmd, [scriptPath, ...args], {
+            env: { 
+                ...process.env, 
+                PYTHONIOENCODING: 'utf-8',
+                IMS_WORKSPACE_PATH: workspacePath
+            }
+        });
+        
+        let stdoutData = '';
+        let errorOutput = '';
+        
+        pythonProcess.stdout.on('data', (data: Buffer) => {
+            stdoutData += data.toString();
+        });
+        
+        pythonProcess.stderr.on('data', (data: Buffer) => {
+            errorOutput += data.toString();
+        });
+        
+        pythonProcess.on('error', (err) => {
+            panel.webview.postMessage({
+                requestId: message.requestId,
+                success: false,
+                error: `无法启动销售报表脚本: ${err.message}`
+            });
+        });
+        
+        pythonProcess.on('close', (code: number) => {
+            if (code === 0) {
+                try {
+                    const result = JSON.parse(stdoutData.trim());
+                    if (result.success) {
+                        panel.webview.postMessage({
+                            requestId: message.requestId,
+                            success: true,
+                            data: result.data || []
+                        });
+                    } else {
+                        panel.webview.postMessage({
+                            requestId: message.requestId,
+                            success: false,
+                            error: result.error || '销售数据加载失败'
+                        });
+                    }
+                } catch (parseError) {
+                    panel.webview.postMessage({
+                        requestId: message.requestId,
+                        success: false,
+                        error: `数据解析失败: ${parseError}`
+                    });
+                }
+            } else {
+                panel.webview.postMessage({
+                    requestId: message.requestId,
+                    success: false,
+                    error: `销售数据加载失败: ${errorOutput || '未知错误'}`
+                });
+            }
+        });
+    } catch (error) {
+        panel.webview.postMessage({
+            requestId: message.requestId,
+            success: false,
+            error: `处理销售数据请求失败: ${error}`
+        });
+    }
+}
+
+// 处理供应商数据加载
+async function handleSuppliersLoad(context: vscode.ExtensionContext, panel: vscode.WebviewPanel, message: any) {
+    try {
+        const scriptsDir = path.join(context.extensionPath, 'scripts');
+        const scriptPath = path.join(scriptsDir, 'query_table_data.py');
+        const pythonCmd = getPythonCommand(context);
+        
+        // 设置数据库配置环境变量
+        setDatabaseConfigEnv();
+        
+        const args = ['--type', 'table', '--name', 'suppliers'];
+        
+        // 获取当前工作区路径
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+        const workspacePath = workspaceFolder ? workspaceFolder.uri.fsPath : '';
+        
+        const pythonProcess = spawn(pythonCmd, [scriptPath, ...args], {
+            env: { 
+                ...process.env, 
+                PYTHONIOENCODING: 'utf-8',
+                IMS_WORKSPACE_PATH: workspacePath
+            }
+        });
+        
+        let stdoutData = '';
+        let errorOutput = '';
+        
+        pythonProcess.stdout.on('data', (data: Buffer) => {
+            stdoutData += data.toString();
+        });
+        
+        pythonProcess.stderr.on('data', (data: Buffer) => {
+            errorOutput += data.toString();
+        });
+        
+        pythonProcess.on('error', (err) => {
+            panel.webview.postMessage({
+                requestId: message.requestId,
+                success: false,
+                error: `无法启动供应商查询脚本: ${err.message}`
+            });
+        });
+        
+        pythonProcess.on('close', (code: number) => {
+            if (code === 0) {
+                try {
+                    const result = JSON.parse(stdoutData.trim());
+                    if (result.success) {
+                        panel.webview.postMessage({
+                            requestId: message.requestId,
+                            success: true,
+                            data: result.data || []
+                        });
+                    } else {
+                        panel.webview.postMessage({
+                            requestId: message.requestId,
+                            success: false,
+                            error: result.error || '供应商数据加载失败'
+                        });
+                    }
+                } catch (parseError) {
+                    panel.webview.postMessage({
+                        requestId: message.requestId,
+                        success: false,
+                        error: `数据解析失败: ${parseError}`
+                    });
+                }
+            } else {
+                panel.webview.postMessage({
+                    requestId: message.requestId,
+                    success: false,
+                    error: `供应商数据加载失败: ${errorOutput || '未知错误'}`
+                });
+            }
+        });
+    } catch (error) {
+        panel.webview.postMessage({
+            requestId: message.requestId,
+            success: false,
+            error: `处理供应商数据请求失败: ${error}`
+        });
+    }
+}
+
+// 处理客户数据加载
+async function handleCustomersLoad(context: vscode.ExtensionContext, panel: vscode.WebviewPanel, message: any) {
+    try {
+        const scriptsDir = path.join(context.extensionPath, 'scripts');
+        const scriptPath = path.join(scriptsDir, 'query_table_data.py');
+        const pythonCmd = getPythonCommand(context);
+        
+        // 设置数据库配置环境变量
+        setDatabaseConfigEnv();
+        
+        const args = ['--type', 'table', '--name', 'customers'];
+        
+        // 获取当前工作区路径
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+        const workspacePath = workspaceFolder ? workspaceFolder.uri.fsPath : '';
+        
+        const pythonProcess = spawn(pythonCmd, [scriptPath, ...args], {
+            env: { 
+                ...process.env, 
+                PYTHONIOENCODING: 'utf-8',
+                IMS_WORKSPACE_PATH: workspacePath
+            }
+        });
+        
+        let stdoutData = '';
+        let errorOutput = '';
+        
+        pythonProcess.stdout.on('data', (data: Buffer) => {
+            stdoutData += data.toString();
+        });
+        
+        pythonProcess.stderr.on('data', (data: Buffer) => {
+            errorOutput += data.toString();
+        });
+        
+        pythonProcess.on('error', (err) => {
+            panel.webview.postMessage({
+                requestId: message.requestId,
+                success: false,
+                error: `无法启动客户查询脚本: ${err.message}`
+            });
+        });
+        
+        pythonProcess.on('close', (code: number) => {
+            if (code === 0) {
+                try {
+                    const result = JSON.parse(stdoutData.trim());
+                    if (result.success) {
+                        panel.webview.postMessage({
+                            requestId: message.requestId,
+                            success: true,
+                            data: result.data || []
+                        });
+                    } else {
+                        panel.webview.postMessage({
+                            requestId: message.requestId,
+                            success: false,
+                            error: result.error || '客户数据加载失败'
+                        });
+                    }
+                } catch (parseError) {
+                    panel.webview.postMessage({
+                        requestId: message.requestId,
+                        success: false,
+                        error: `数据解析失败: ${parseError}`
+                    });
+                }
+            } else {
+                panel.webview.postMessage({
+                    requestId: message.requestId,
+                    success: false,
+                    error: `客户数据加载失败: ${errorOutput || '未知错误'}`
+                });
+            }
+        });
+    } catch (error) {
+        panel.webview.postMessage({
+            requestId: message.requestId,
+            success: false,
+            error: `处理客户数据请求失败: ${error}`
+        });
+    }
+}
+
+// 处理物料数据加载
+async function handleMaterialsLoad(context: vscode.ExtensionContext, panel: vscode.WebviewPanel, message: any) {
+    try {
+        const scriptsDir = path.join(context.extensionPath, 'scripts');
+        const scriptPath = path.join(scriptsDir, 'query_table_data.py');
+        const pythonCmd = getPythonCommand(context);
+        
+        // 设置数据库配置环境变量
+        setDatabaseConfigEnv();
+        
+        const args = ['--type', 'table', '--name', 'materials'];
+        
+        // 获取当前工作区路径
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+        const workspacePath = workspaceFolder ? workspaceFolder.uri.fsPath : '';
+        
+        const pythonProcess = spawn(pythonCmd, [scriptPath, ...args], {
+            env: { 
+                ...process.env, 
+                PYTHONIOENCODING: 'utf-8',
+                IMS_WORKSPACE_PATH: workspacePath
+            }
+        });
+        
+        let stdoutData = '';
+        let errorOutput = '';
+        
+        pythonProcess.stdout.on('data', (data: Buffer) => {
+            stdoutData += data.toString();
+        });
+        
+        pythonProcess.stderr.on('data', (data: Buffer) => {
+            errorOutput += data.toString();
+        });
+        
+        pythonProcess.on('error', (err) => {
+            panel.webview.postMessage({
+                requestId: message.requestId,
+                success: false,
+                error: `无法启动物料查询脚本: ${err.message}`
+            });
+        });
+        
+        pythonProcess.on('close', (code: number) => {
+            if (code === 0) {
+                try {
+                    const result = JSON.parse(stdoutData.trim());
+                    if (result.success) {
+                        panel.webview.postMessage({
+                            requestId: message.requestId,
+                            success: true,
+                            data: result.data || []
+                        });
+                    } else {
+                        panel.webview.postMessage({
+                            requestId: message.requestId,
+                            success: false,
+                            error: result.error || '物料数据加载失败'
+                        });
+                    }
+                } catch (parseError) {
+                    panel.webview.postMessage({
+                        requestId: message.requestId,
+                        success: false,
+                        error: `数据解析失败: ${parseError}`
+                    });
+                }
+            } else {
+                panel.webview.postMessage({
+                    requestId: message.requestId,
+                    success: false,
+                    error: `物料数据加载失败: ${errorOutput || '未知错误'}`
+                });
+            }
+        });
+    } catch (error) {
+        panel.webview.postMessage({
+            requestId: message.requestId,
+            success: false,
+            error: `处理物料数据请求失败: ${error}`
+        });
+    }
+}

@@ -261,6 +261,21 @@
             color: #721c24;
         }
 
+        .status-正常 {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-低库存 {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-缺货 {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
         .modal {
             display: none;
             position: fixed;
@@ -1058,19 +1073,47 @@
 
         // 库存数据管理
         async function loadInventoryData() {
+            // 显示加载状态
+            const tbody = document.getElementById('inventoryTableBody');
+            tbody.innerHTML = '<tr><td colspan="8" class="loading">正在加载库存数据...</td></tr>';
+            
+            // 重置统计信息
+            document.getElementById('totalInventoryItems').textContent = '0';
+            document.getElementById('lowStockItems').textContent = '0';
+            document.getElementById('totalInventoryValue').textContent = '¥0';
+            
             try {
                 const response = await sendMessage({
                     action: 'load_inventory_data'
                 });
+                
                 if (response.success) {
                     inventoryData = response.data || [];
-                    displayInventoryData(inventoryData);
-                    updateInventoryStats();
+                    
+                    if (inventoryData.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="8" class="loading">暂无库存数据</td></tr>';
+                        showInfo('当前没有库存数据，请检查数据库或添加库存记录。');
+                    } else {
+                        displayInventoryData(inventoryData);
+                        // 使用后端返回的统计数据，如果没有则计算本地统计
+                        if (response.statistics) {
+                            updateInventoryStatsFromServer(response.statistics);
+                        } else {
+                            updateInventoryStats();
+                        }
+                        showSuccess(`成功加载 ${inventoryData.length} 条库存记录`);
+                    }
                 } else {
+                    tbody.innerHTML = '<tr><td colspan="8" class="loading">数据加载失败</td></tr>';
                     showError('加载库存数据失败: ' + (response.error || '未知错误'));
                 }
             } catch (error) {
-                showError('加载库存数据失败: ' + error.message);
+                tbody.innerHTML = '<tr><td colspan="8" class="loading">数据加载失败</td></tr>';
+                if (error.message === '请求超时') {
+                    showError('加载库存数据超时，请检查网络连接或稍后重试');
+                } else {
+                    showError('加载库存数据失败: ' + error.message);
+                }
             }
         }
 
@@ -1085,30 +1128,53 @@
                 const stockStatus = getStockStatus(item.current_stock, item.safety_stock);
                 return `
                     <tr>
-                        <td>${item.material_code || ''}</td>
-                        <td>${item.material_name || ''}</td>
-                        <td>${item.material_model || ''}</td>
+                        <td>${item.product_code || item.material_code || ''}</td>
+                        <td>${item.product_name || item.material_name || ''}</td>
+                        <td>${item.product_model || item.material_model || ''}</td>
                         <td>${formatNumber(item.current_stock || 0)}</td>
                         <td>${formatNumber(item.safety_stock || 0)}</td>
                         <td>${item.unit || ''}</td>
                         <td><span class="status-badge status-${stockStatus.class}">${stockStatus.text}</span></td>
                         <td>
-                            <button class="btn btn-sm btn-warning" onclick="adjustInventory('${item.material_code}')">调整</button>
-                            <button class="btn btn-sm btn-primary" onclick="viewInventoryHistory('${item.material_code}')">历史</button>
+                            <button class="btn btn-sm btn-warning" onclick="adjustInventory('${item.product_code || item.material_code}')">调整</button>
+                            <button class="btn btn-sm btn-primary" onclick="viewInventoryHistory('${item.product_code || item.material_code}')">历史</button>
                         </td>
                     </tr>
                 `;
             }).join('');
         }
 
+        // 防抖搜索
+        let searchTimeout;
         function filterInventoryData() {
-            const searchTerm = document.getElementById('inventorySearch').value.toLowerCase();
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                performInventorySearch();
+            }, 300); // 300ms防抖延迟
+        }
+        
+        function performInventorySearch() {
+            const searchTerm = document.getElementById('inventorySearch').value.toLowerCase().trim();
+            
+            if (!searchTerm) {
+                // 如果搜索框为空，显示所有数据
+                displayInventoryData(inventoryData);
+                return;
+            }
+            
             const filteredData = inventoryData.filter(item => 
-                (item.material_code || '').toLowerCase().includes(searchTerm) ||
-                (item.material_name || '').toLowerCase().includes(searchTerm) ||
-                (item.material_model || '').toLowerCase().includes(searchTerm)
+                (item.product_code || item.material_code || '').toLowerCase().includes(searchTerm) ||
+                (item.product_name || item.material_name || '').toLowerCase().includes(searchTerm) ||
+                (item.product_model || item.material_model || '').toLowerCase().includes(searchTerm) ||
+                (item.supplier_name || '').toLowerCase().includes(searchTerm)
             );
-            displayInventoryData(filteredData);
+            
+            if (filteredData.length === 0) {
+                const tbody = document.getElementById('inventoryTableBody');
+                tbody.innerHTML = '<tr><td colspan="8" class="loading">未找到匹配的库存记录</td></tr>';
+            } else {
+                displayInventoryData(filteredData);
+            }
         }
 
         function updateInventoryStats() {
@@ -1117,7 +1183,7 @@
                 (item.current_stock || 0) <= (item.safety_stock || 0)
             ).length;
             const totalValue = inventoryData.reduce((sum, item) => 
-                sum + ((item.current_stock || 0) * (item.unit_price || 0)), 0
+                sum + (item.stock_value || ((item.current_stock || 0) * (item.unit_price || 0))), 0
             );
 
             document.getElementById('totalInventoryItems').textContent = totalItems;
@@ -1433,11 +1499,11 @@
             const safety = safetyStock || 0;
             
             if (current <= 0) {
-                return { class: 'cancelled', text: '缺货' };
+                return { class: '缺货', text: '缺货' };
             } else if (current <= safety) {
-                return { class: 'pending', text: '低库存' };
+                return { class: '低库存', text: '低库存' };
             } else {
-                return { class: 'completed', text: '正常' };
+                return { class: '正常', text: '正常' };
             }
         }
 
@@ -1542,6 +1608,32 @@
             }, 3000);
         }
 
+        function showInfo(message) {
+            // 创建信息提示元素
+            const infoDiv = document.createElement('div');
+            infoDiv.className = 'info';
+            infoDiv.textContent = message;
+            infoDiv.style.cssText = `
+                background: #d1ecf1;
+                color: #0c5460;
+                padding: 15px;
+                border-radius: 6px;
+                margin: 15px 0;
+                border: 1px solid #bee5eb;
+            `;
+            
+            // 插入到页面顶部
+            const container = document.querySelector('.container');
+            container.insertBefore(infoDiv, container.firstChild);
+            
+            // 5秒后自动移除
+            setTimeout(() => {
+                if (infoDiv.parentNode) {
+                    infoDiv.parentNode.removeChild(infoDiv);
+                }
+            }, 5000);
+        }
+
         // 编辑和删除操作（占位符函数）
         function editPurchaseOrder(id) {
             showError('编辑功能开发中...');
@@ -1604,4 +1696,18 @@
                     modal.style.display = 'none';
                 }
             });
+        }    
+    // 使用服务器返回的统计数据更新界面
+        function updateInventoryStatsFromServer(statistics) {
+            document.getElementById('totalInventoryItems').textContent = statistics.total_items || 0;
+            document.getElementById('lowStockItems').textContent = statistics.low_stock_items || 0;
+            document.getElementById('totalInventoryValue').textContent = '¥' + formatNumber(statistics.total_value || 0);
+            
+            // 如果有额外的统计信息，可以在这里处理
+            if (statistics.status_distribution) {
+                console.log('库存状态分布:', statistics.status_distribution);
+            }
+            if (statistics.supplier_distribution) {
+                console.log('供应商分布:', statistics.supplier_distribution);
+            }
         }
