@@ -196,6 +196,10 @@ export function activate(context: vscode.ExtensionContext) {
         showInventoryManagementPanel(context);
     });
 
+    const showDataAnalysisDashboardCommand = vscode.commands.registerCommand('ims.showDataAnalysisDashboard', () => {
+        showDataAnalysisDashboard(context);
+    });
+
     // 6. Push all subscriptions
     context.subscriptions.push(
         convertToJsonCommand,
@@ -211,6 +215,7 @@ export function activate(context: vscode.ExtensionContext) {
         showInventoryManagementCommand, 
         showCustomerManagementCommand,
         showSupplierManagementCommand,
+        showDataAnalysisDashboardCommand,
         openSettingsCommand
     );
 }
@@ -1920,11 +1925,267 @@ function getInventoryManagementHtml(webview: vscode.Webview, extensionUri: vscod
                                 break;
                         }
                     });
-                </script>
+                                </script>
             </body>
             </html>
         `;
     }
+}
+
+
+// 显示数据分析仪表板面板
+function showDataAnalysisDashboard(context: vscode.ExtensionContext) {
+    const panel = vscode.window.createWebviewPanel(
+        'imsDataAnalysisDashboard',
+        '📊 数据分析仪表板',
+        vscode.ViewColumn.One,
+        {
+            enableScripts: true,
+            retainContextWhenHidden: true
+        }
+    );
+
+    // 读取HTML文件内容
+    const webviewsPath = path.join(context.extensionPath, 'webviews');
+    const htmlPath = path.join(webviewsPath, 'data_analysis_dashboard.html');
+    
+    try {
+        panel.webview.html = fs.readFileSync(htmlPath, 'utf8');
+    } catch (error) {
+        vscode.window.showErrorMessage(`无法加载数据分析仪表板: ${error}`);
+        return;
+    }
+
+    // 处理来自webview的消息
+    panel.webview.onDidReceiveMessage(
+        async message => {
+            switch (message.command) {
+                case 'getDashboardData':
+                    await handleDashboardDataRequest(context, panel, message.params);
+                    break;
+                case 'getSalesTrend':
+                    await handleSalesTrendRequest(context, panel, message.params);
+                    break;
+                case 'getInventoryAnalysis':
+                    await handleInventoryAnalysisRequest(context, panel, message.params);
+                    break;
+                case 'getCustomerAnalysis':
+                    await handleCustomerAnalysisRequest(context, panel, message.params);
+                    break;
+                case 'getPurchaseTrend':
+                    await handlePurchaseTrendRequest(context, panel, message.params);
+                    break;
+                case 'getComparisonAnalysis':
+                    await handleComparisonAnalysisRequest(context, panel, message.params);
+                    break;
+                case 'exportDashboard':
+                    await handleDashboardExportRequest(context, panel, message.params);
+                    break;
+            }
+        },
+        undefined,
+        context.subscriptions
+    );
+}
+
+// 处理仪表板数据请求
+async function handleDashboardDataRequest(context: vscode.ExtensionContext, panel: vscode.WebviewPanel, params: any) {
+    try {
+        const result = await runDataAnalysisScript(context, 'get_dashboard_summary', params);
+        panel.webview.postMessage({
+            command: 'dashboardData',
+            success: result.success,
+            data: result.data,
+            error: result.error
+        });
+    } catch (error) {
+        panel.webview.postMessage({
+            command: 'dashboardData',
+            success: false,
+            error: `获取仪表板数据失败: ${error}`
+        });
+    }
+}
+
+// 处理销售趋势请求
+async function handleSalesTrendRequest(context: vscode.ExtensionContext, panel: vscode.WebviewPanel, params: any) {
+    try {
+        const result = await runDataAnalysisScript(context, 'analyze_sales_trend', params);
+        panel.webview.postMessage({
+            command: 'salesTrendData',
+            success: result.success,
+            data: result.data,
+            dimension: params.dimension,
+            error: result.error
+        });
+    } catch (error) {
+        panel.webview.postMessage({
+            command: 'salesTrendData',
+            success: false,
+            error: `获取销售趋势失败: ${error}`
+        });
+    }
+}
+
+// 处理库存分析请求
+async function handleInventoryAnalysisRequest(context: vscode.ExtensionContext, panel: vscode.WebviewPanel, params: any) {
+    try {
+        const result = await runDataAnalysisScript(context, 'analyze_inventory_turnover', params);
+        panel.webview.postMessage({
+            command: 'inventoryAnalysisData',
+            success: result.success,
+            data: result.data,
+            error: result.error
+        });
+    } catch (error) {
+        panel.webview.postMessage({
+            command: 'inventoryAnalysisData',
+            success: false,
+            error: `获取库存分析失败: ${error}`
+        });
+    }
+}
+
+// 处理客户分析请求
+async function handleCustomerAnalysisRequest(context: vscode.ExtensionContext, panel: vscode.WebviewPanel, params: any) {
+    try {
+        const result = await runDataAnalysisScript(context, 'analyze_customer_value', params);
+        panel.webview.postMessage({
+            command: 'customerAnalysisData',
+            success: result.success,
+            data: result.data,
+            error: result.error
+        });
+    } catch (error) {
+        panel.webview.postMessage({
+            command: 'customerAnalysisData',
+            success: false,
+            error: `获取客户分析失败: ${error}`
+        });
+    }
+}
+
+// 处理采购趋势请求
+async function handlePurchaseTrendRequest(context: vscode.ExtensionContext, panel: vscode.WebviewPanel, params: any) {
+    try {
+        const result = await runDataAnalysisScript(context, 'analyze_purchase_trend', params);
+        panel.webview.postMessage({
+            command: 'purchaseTrendData',
+            success: result.success,
+            data: result.data,
+            dimension: params.dimension,
+            error: result.error
+        });
+    } catch (error) {
+        panel.webview.postMessage({
+            command: 'purchaseTrendData',
+            success: false,
+            error: `获取采购趋势失败: ${error}`
+        });
+    }
+}
+
+// 处理对比分析请求
+async function handleComparisonAnalysisRequest(context: vscode.ExtensionContext, panel: vscode.WebviewPanel, params: any) {
+    try {
+        const result = await runDataAnalysisScript(context, 'generate_comparison_analysis', params);
+        panel.webview.postMessage({
+            command: 'comparisonAnalysisData',
+            success: result.success,
+            data: result.data,
+            error: result.error
+        });
+    } catch (error) {
+        panel.webview.postMessage({
+            command: 'comparisonAnalysisData',
+            success: false,
+            error: `生成对比分析失败: ${error}`
+        });
+    }
+}
+
+// 处理仪表板导出请求
+async function handleDashboardExportRequest(context: vscode.ExtensionContext, panel: vscode.WebviewPanel, params: any) {
+    try {
+        // 这里可以实现导出功能，比如生成PDF或Excel报告
+        panel.webview.postMessage({
+            command: 'exportResult',
+            success: true,
+            message: '导出功能暂未实现'
+        });
+    } catch (error) {
+        panel.webview.postMessage({
+            command: 'exportResult',
+            success: false,
+            error: `导出失败: ${error}`
+        });
+    }
+}
+
+// 运行数据分析脚本
+async function runDataAnalysisScript(context: vscode.ExtensionContext, method: string, params: any): Promise<any> {
+    return new Promise((resolve, reject) => {
+        const scriptsDir = path.join(context.extensionPath, 'scripts');
+        const scriptPath = path.join(scriptsDir, 'data_analysis_service.py');
+        const pythonCmd = getPythonCommand(context);
+        
+        // 设置数据库配置环境变量
+        setDatabaseConfigEnv();
+        
+        // 构建参数
+        const args = ['--method', method];
+        if (params) {
+            args.push('--params', JSON.stringify(params));
+        }
+        
+        // 获取当前工作区路径
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+        const workspacePath = workspaceFolder ? workspaceFolder.uri.fsPath : '';
+        
+        const pythonProcess = spawn(pythonCmd, [scriptPath, ...args], {
+            env: { 
+                ...process.env, 
+                PYTHONIOENCODING: 'utf-8',
+                IMS_WORKSPACE_PATH: workspacePath
+            }
+        });
+        
+        let stdoutData = '';
+        let errorOutput = '';
+        
+        pythonProcess.stdout.on('data', (data: Buffer) => {
+            stdoutData += data.toString();
+        });
+        
+        pythonProcess.stderr.on('data', (data: Buffer) => {
+            errorOutput += data.toString();
+        });
+        
+        pythonProcess.on('error', (err) => {
+            reject(`无法启动数据分析脚本: ${err.message}`);
+        });
+        
+        pythonProcess.on('close', (code: number) => {
+            if (code === 0) {
+                try {
+                    const result = JSON.parse(stdoutData.trim() || '{"success": false, "error": "无数据返回"}');
+                    resolve(result);
+                } catch (parseError) {
+                    resolve({
+                        success: false,
+                        error: `解析结果失败: ${parseError}`,
+                        rawOutput: stdoutData
+                    });
+                }
+            } else {
+                resolve({
+                    success: false,
+                    error: errorOutput || `脚本执行失败，退出码: ${code}`,
+                    rawOutput: stdoutData
+                });
+            }
+        });
+    });
 }
 
 export function deactivate() {}

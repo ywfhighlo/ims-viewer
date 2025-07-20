@@ -301,6 +301,7 @@ export class ImsTreeDataProvider implements vscode.TreeDataProvider<vscode.TreeI
     private async getBusinessViewsAsTreeItems(): Promise<vscode.TreeItem[]> {
         // 业务视图列表（移除了管理相关的视图）
         const businessViews = [
+            { name: "📊 数据分析仪表板", description: "业务数据统计分析和趋势预测", icon: "dashboard", command: "ims.showDataAnalysisDashboard" },
             { name: "供应商对账表", description: "供应商账务汇总", icon: "graph", command: "ims.showBusinessView" },
             { name: "客户对账单", description: "客户账务汇总", icon: "graph", command: "ims.showBusinessView" },
             { name: "库存盘点报表", description: "库存统计分析", icon: "graph", command: "ims.showBusinessView" },
@@ -315,11 +316,21 @@ export class ImsTreeDataProvider implements vscode.TreeDataProvider<vscode.TreeI
             item.iconPath = new vscode.ThemeIcon(view.icon);
             item.tooltip = view.description;
             item.contextValue = "businessView";
-            item.command = {
-                command: view.command,
-                title: view.name,
-                arguments: [view.name, view.name]
-            };
+            
+            // 特殊处理数据分析仪表板
+            if (view.command === "ims.showDataAnalysisDashboard") {
+                item.command = {
+                    command: view.command,
+                    title: view.name
+                };
+            } else {
+                item.command = {
+                    command: view.command,
+                    title: view.name,
+                    arguments: [view.name, view.name]
+                };
+            }
+            
             return item;
         });
     }
