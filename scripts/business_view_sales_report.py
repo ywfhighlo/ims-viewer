@@ -108,17 +108,20 @@ def generate_sales_summary(start_date: Optional[str] = None,
             }
         
         # 计算汇总统计
-        total_amount = sum(item.get('total_sales_amount', 0) for item in sales_data)
+        total_amount = sum(item.get('total_amount', 0) for item in sales_data)
         total_quantity = sum(item.get('total_quantity', 0) for item in sales_data)
-        order_count = sum(item.get('order_count', 0) for item in sales_data)
+        order_count = sum(item.get('sales_count', 0) for item in sales_data)
         
-        # 客户统计
-        customers = set(item.get('customer_name') for item in sales_data if item.get('customer_name'))
-        customer_count = len(customers)
+        # 客户统计 - 从销售数据中获取客户信息
+        all_customers = set()
+        for item in sales_data:
+            customer_count_in_item = item.get('customer_count', 0)
+            if customer_count_in_item > 0:
+                all_customers.add(item.get('product_code', ''))  # 使用产品代码作为唯一标识
+        customer_count = sum(item.get('customer_count', 0) for item in sales_data)
         
         # 产品统计
-        products = set(item.get('material_code') for item in sales_data if item.get('material_code'))
-        product_count = len(products)
+        product_count = len(sales_data)
         
         # 客户排名（按销售金额）
         customer_stats = {}
@@ -132,9 +135,9 @@ def generate_sales_summary(start_date: Optional[str] = None,
                         'total_quantity': 0,
                         'order_count': 0
                     }
-                customer_stats[customer]['total_amount'] += item.get('total_sales_amount', 0)
+                customer_stats[customer]['total_amount'] += item.get('total_amount', 0)
                 customer_stats[customer]['total_quantity'] += item.get('total_quantity', 0)
-                customer_stats[customer]['order_count'] += item.get('order_count', 0)
+                customer_stats[customer]['order_count'] += item.get('sales_count', 0)
         
         top_customers = sorted(customer_stats.values(), 
                              key=lambda x: x['total_amount'], 
@@ -153,9 +156,9 @@ def generate_sales_summary(start_date: Optional[str] = None,
                         'total_quantity': 0,
                         'order_count': 0
                     }
-                product_stats[product]['total_amount'] += item.get('total_sales_amount', 0)
+                product_stats[product]['total_amount'] += item.get('total_amount', 0)
                 product_stats[product]['total_quantity'] += item.get('total_quantity', 0)
-                product_stats[product]['order_count'] += item.get('order_count', 0)
+                product_stats[product]['order_count'] += item.get('sales_count', 0)
         
         top_products = sorted(product_stats.values(),
                             key=lambda x: x['total_amount'],
@@ -223,9 +226,9 @@ def calculate_monthly_trend(sales_data: List[Dict[str, Any]]) -> List[Dict[str, 
                         'order_count': 0
                     }
                 
-                monthly_stats[month_key]['total_amount'] += item.get('total_sales_amount', 0)
+                monthly_stats[month_key]['total_amount'] += item.get('total_amount', 0)
                 monthly_stats[month_key]['total_quantity'] += item.get('total_quantity', 0)
-                monthly_stats[month_key]['order_count'] += item.get('order_count', 0)
+                monthly_stats[month_key]['order_count'] += item.get('sales_count', 0)
                 
             except (ValueError, TypeError) as e:
                 continue

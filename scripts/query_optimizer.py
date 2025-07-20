@@ -475,6 +475,34 @@ class QueryOptimizer:
             inventory_collection = db['inventory_stats']
             report_data = list(inventory_collection.aggregate(pipeline))
             
+            # 获取供应商信息 - 通过采购记录关联
+            if report_data:
+                # 获取所有产品编码
+                product_codes = [item.get('product_code') for item in report_data if item.get('product_code')]
+                
+                if product_codes:
+                    # 从采购入库记录中获取最新的供应商信息
+                    purchase_collection = db['purchase_inbound']
+                    supplier_pipeline = [
+                        {'$match': {'material_code': {'$in': product_codes}}},
+                        {'$sort': {'inbound_date': -1}},
+                        {'$group': {
+                            '_id': '$material_code',
+                            'supplier_name': {'$first': '$supplier_name'}
+                        }}
+                    ]
+                    
+                    supplier_data = list(purchase_collection.aggregate(supplier_pipeline))
+                    supplier_dict = {item['_id']: item['supplier_name'] for item in supplier_data}
+                    
+                    # 更新库存报表数据中的供应商信息
+                    for item in report_data:
+                        product_code = item.get('product_code')
+                        if product_code and product_code in supplier_dict:
+                            item['supplier_name'] = supplier_dict[product_code]
+                        else:
+                            item['supplier_name'] = '未知供应商'
+            
             self.logger.info(f"库存报表查询优化完成，共 {len(report_data)} 条记录")
             return report_data
             
@@ -537,7 +565,7 @@ class QueryOptimizer:
                     'product_model': {'$first': '$specification'},
                     'unit': {'$first': '$unit'},
                     'total_quantity': {'$sum': '$quantity'},
-                    'total_amount': {'$sum': '$outbound_amount'},
+                    'total_amount': {'$sum': {'$toDouble': {'$ifNull': ['$outbound_amount', 0]}}},
                     'sales_count': {'$sum': 1},
                     'customers': {'$addToSet': '$customer_name'},
                     'latest_sale_date': {'$max': '$outbound_date'}
