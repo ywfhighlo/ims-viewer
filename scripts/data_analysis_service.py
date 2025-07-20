@@ -21,6 +21,8 @@ from scripts.business_view_purchase_report import generate_purchase_summary
 from scripts.business_view_inventory_report import generate_inventory_report
 from scripts.business_view_receivables_report import generate_receivables_summary
 from scripts.business_view_payables_report import generate_payables_summary
+from scripts.cache_manager import get_cache_manager, cache_report_data
+from scripts.query_optimizer import QueryOptimizer
 
 class DataAnalysisService:
     """数据分析服务类"""
@@ -33,6 +35,8 @@ class DataAnalysisService:
             logger: 日志记录器
         """
         self.logger = logger or EnhancedLogger("data_analysis_service")
+        self.cache_manager = get_cache_manager()
+        self.query_optimizer = QueryOptimizer(logger)
     
     def get_business_overview(self, date_range: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
         """
@@ -389,6 +393,81 @@ class DataAnalysisService:
         except Exception as e:
             self.logger.error(f"生成对比分析失败: {str(e)}")
             raise
+    
+    def handle_method_call(self, method: str, params: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        统一的方法调用处理器
+        
+        Args:
+            method: 方法名称
+            params: 方法参数
+            
+        Returns:
+            标准化的JSON响应
+        """
+        try:
+            self.logger.info(f"处理方法调用: {method}, 参数: {params}")
+            
+            # 使用缓存装饰器包装数据生成
+            cache_key_params = {'method': method, **params}
+            
+            def data_generator():
+                if method == 'get_dashboard_summary':
+                    date_range = params.get('date_range')
+                    return self.get_business_overview(date_range)
+                
+                elif method == 'analyze_sales_trend':
+                    dimension = params.get('dimension', 'month')
+                    date_range = params.get('date_range')
+                    return self.analyze_sales_trend(dimension, date_range)
+                
+                elif method == 'analyze_customer_value':
+                    analysis_type = params.get('analysis_type', 'rfm')
+                    return self.analyze_customer_value(analysis_type)
+                
+                elif method == 'analyze_inventory_turnover':
+                    date_range = params.get('date_range')
+                    return self.analyze_inventory_turnover(date_range)
+                
+                elif method == 'generate_comparison_analysis':
+                    metrics = params.get('metrics', ['total_sales', 'total_purchases'])
+                    dimensions = params.get('dimensions', ['month', 'product'])
+                    date_range = params.get('date_range')
+                    return self.generate_comparison_analysis(metrics, dimensions, date_range)
+                
+                else:
+                    raise ValueError(f"未知的方法: {method}")
+            
+            # 使用缓存装饰器获取数据
+            data = cache_report_data(
+                view_name=f"data_analysis_{method}",
+                params=cache_key_params,
+                data_generator=data_generator,
+                ttl=300,  # 5分钟缓存
+                cache_manager=self.cache_manager
+            )
+            
+            # 返回标准化的成功响应
+            return {
+                'success': True,
+                'method': method,
+                'data': data,
+                'generated_at': datetime.now().isoformat(),
+                'cached': True  # 表示使用了缓存机制
+            }
+            
+        except Exception as e:
+            self.logger.error(f"方法调用失败: {method}, 错误: {str(e)}")
+            return {
+                'success': False,
+                'method': method,
+                'error': {
+                    'code': 'METHOD_CALL_FAILED',
+                    'message': str(e),
+                    'details': f"调用方法 {method} 时发生错误"
+                },
+                'generated_at': datetime.now().isoformat()
+            }
 
 def main():
     """主函数"""
@@ -398,9 +477,15 @@ def main():
     try:
         # 解析命令行参数
         parser = argparse.ArgumentParser(description='数据分析服务')
+        
+        # 新的统一接口参数
+        parser.add_argument('--method', type=str, help='调用的方法名称')
+        parser.add_argument('--params', type=str, help='方法参数（JSON格式）')
+        
+        # 保持向后兼容的旧参数
         parser.add_argument('--analysis_type', type=str, default='overview', 
                           choices=['overview', 'sales_trend', 'customer_value', 'inventory_turnover', 'comparison'],
-                          help='分析类型')
+                          help='分析类型（向后兼容）')
         parser.add_argument('--start_date', type=str, help='开始日期 (YYYY-MM-DD)')
         parser.add_argument('--end_date', type=str, help='结束日期 (YYYY-MM-DD)')
         parser.add_argument('--dimension', type=str, default='month', help='分析维度')
@@ -408,38 +493,113 @@ def main():
         
         args = parser.parse_args()
         
-        # 构建日期范围
-        date_range = None
-        if args.start_date or args.end_date:
-            date_range = {
-                'start_date': args.start_date,
-                'end_date': args.end_date
-            }
+        # 优先使用新的统一接口
+        if args.method:
+            # 解析参数
+            params = {}
+            if args.params:
+                try:
+                    params = json.loads(args.params)
+                except json.JSONDecodeError as e:
+                    logger.error(f"参数解析失败: {str(e)}")
+                    result = {
+                        'success': False,
+                        'error': {
+                            'code': 'INVALID_PARAMS',
+                            'message': f'参数格式错误: {str(e)}',
+                            'details': '参数必须是有效的JSON格式'
+                        },
+                        'generated_at': datetime.now().isoformat()
+                    }
+                    print(json.dumps(result, ensure_ascii=False, indent=2))
+                    sys.exit(1)
+            
+            # 使用统一的方法调用处理器
+            result = service.handle_method_call(args.method, params)
         
-        # 根据分析类型生成相应的分析结果
-        if args.analysis_type == 'overview':
-            result = service.get_business_overview(date_range)
-        elif args.analysis_type == 'sales_trend':
-            result = service.analyze_sales_trend(args.dimension, date_range)
-        elif args.analysis_type == 'customer_value':
-            result = service.analyze_customer_value('rfm')
-        elif args.analysis_type == 'inventory_turnover':
-            result = service.analyze_inventory_turnover(date_range)
-        elif args.analysis_type == 'comparison':
-            result = service.generate_comparison_analysis(
-                ['total_sales', 'total_purchases'],
-                ['month', 'product'],
-                date_range
-            )
         else:
-            result = {'error': f'未知的分析类型: {args.analysis_type}'}
+            # 向后兼容的旧接口
+            logger.info("使用向后兼容的旧接口")
+            
+            # 构建日期范围
+            date_range = None
+            if args.start_date or args.end_date:
+                date_range = {
+                    'start_date': args.start_date,
+                    'end_date': args.end_date
+                }
+            
+            # 根据分析类型生成相应的分析结果
+            if args.analysis_type == 'overview':
+                data = service.get_business_overview(date_range)
+                result = {
+                    'success': True,
+                    'method': 'get_dashboard_summary',
+                    'data': data,
+                    'generated_at': datetime.now().isoformat()
+                }
+            elif args.analysis_type == 'sales_trend':
+                data = service.analyze_sales_trend(args.dimension, date_range)
+                result = {
+                    'success': True,
+                    'method': 'analyze_sales_trend',
+                    'data': data,
+                    'generated_at': datetime.now().isoformat()
+                }
+            elif args.analysis_type == 'customer_value':
+                data = service.analyze_customer_value('rfm')
+                result = {
+                    'success': True,
+                    'method': 'analyze_customer_value',
+                    'data': data,
+                    'generated_at': datetime.now().isoformat()
+                }
+            elif args.analysis_type == 'inventory_turnover':
+                data = service.analyze_inventory_turnover(date_range)
+                result = {
+                    'success': True,
+                    'method': 'analyze_inventory_turnover',
+                    'data': data,
+                    'generated_at': datetime.now().isoformat()
+                }
+            elif args.analysis_type == 'comparison':
+                data = service.generate_comparison_analysis(
+                    ['total_sales', 'total_purchases'],
+                    ['month', 'product'],
+                    date_range
+                )
+                result = {
+                    'success': True,
+                    'method': 'generate_comparison_analysis',
+                    'data': data,
+                    'generated_at': datetime.now().isoformat()
+                }
+            else:
+                result = {
+                    'success': False,
+                    'error': {
+                        'code': 'UNKNOWN_ANALYSIS_TYPE',
+                        'message': f'未知的分析类型: {args.analysis_type}',
+                        'details': '请使用有效的分析类型'
+                    },
+                    'generated_at': datetime.now().isoformat()
+                }
         
-        # 输出结果
+        # 输出标准化的JSON结果
         print(json.dumps(result, ensure_ascii=False, indent=2))
         
     except Exception as e:
         logger.error(f"执行失败: {str(e)}")
-        print(json.dumps({'error': str(e)}, ensure_ascii=False), file=sys.stderr)
+        error_result = {
+            'success': False,
+            'error': {
+                'code': 'EXECUTION_FAILED',
+                'message': str(e),
+                'details': '数据分析服务执行失败'
+            },
+            'generated_at': datetime.now().isoformat()
+        }
+        print(json.dumps(error_result, ensure_ascii=False, indent=2), file=sys.stderr)
         sys.exit(1)
 
 if __name__ == "__main__":
