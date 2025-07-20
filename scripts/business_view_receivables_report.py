@@ -326,7 +326,7 @@ def main():
         
     except Exception as e:
         logger.error(f"执行失败: {str(e)}")
-        print(f"错误: {str(e)}", file=sys.stderr)
+        print(f"错误: {str(e)}", file=sys.stderr, encoding='utf-8', errors='ignore')
         sys.exit(1)
 
 if __name__ == "__main__":
