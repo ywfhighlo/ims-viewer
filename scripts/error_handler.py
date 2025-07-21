@@ -10,7 +10,7 @@ import traceback
 from datetime import datetime
 from typing import Any, Dict, Optional, Type, Union
 from functools import wraps
-from enhanced_logger import get_logger
+from scripts.enhanced_logger import get_logger
 
 
 class BusinessError(Exception):

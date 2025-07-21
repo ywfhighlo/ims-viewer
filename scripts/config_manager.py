@@ -10,7 +10,7 @@ import json
 from typing import Any, Dict, Optional, Union
 from pathlib import Path
 from dataclasses import dataclass, asdict
-from enhanced_logger import get_logger
+from scripts.enhanced_logger import get_logger
 
 
 @dataclass

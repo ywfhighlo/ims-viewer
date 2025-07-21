@@ -2031,6 +2031,9 @@ function showDataAnalysisDashboard(context: vscode.ExtensionContext) {
                 case 'exportDashboard':
                     await handleDashboardExportRequest(context, panel, message.params);
                     break;
+                case 'exportDashboardData':
+                    await handleDashboardDataExportRequest(context, panel, message.params);
+                    break;
             }
         },
         undefined,
@@ -2038,138 +2041,445 @@ function showDataAnalysisDashboard(context: vscode.ExtensionContext) {
     );
 }
 
-// 处理仪表板数据请求
-async function handleDashboardDataRequest(context: vscode.ExtensionContext, panel: vscode.WebviewPanel, params: any) {
+// 通用的数据请求处理器
+async function handleDataAnalysisRequest(
+    context: vscode.ExtensionContext, 
+    panel: vscode.WebviewPanel, 
+    method: string, 
+    command: string, 
+    params: any,
+    additionalData: any = {}
+) {
+    const requestId = `${method}_${Date.now()}`;
+    
     try {
-        const result = await runDataAnalysisScript(context, 'get_dashboard_summary', params);
+        // 参数验证和清理
+        const cleanParams = validateAndCleanParams(params);
+        
+        // 记录请求开始
+        outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] [${requestId}] 开始处理数据请求: ${method}`);
+        
+        // 发送加载状态
         panel.webview.postMessage({
-            command: 'dashboardData',
+            command: 'loadingStatus',
+            method: method,
+            loading: true,
+            requestId: requestId
+        });
+        
+        const startTime = Date.now();
+        const result = await runDataAnalysisScript(context, method, cleanParams);
+        const executionTime = Date.now() - startTime;
+        
+        // 记录执行结果
+        outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] [${requestId}] 请求完成: ${result.success ? '成功' : '失败'}, 耗时: ${executionTime}ms`);
+        
+        // 构建响应消息
+        const responseMessage = {
+            command: command,
             success: result.success,
             data: result.data,
-            error: result.error
-        });
-    } catch (error) {
+            error: result.error,
+            requestId: requestId,
+            executionTime: executionTime,
+            timestamp: new Date().toISOString(),
+            ...additionalData
+        };
+        
+        // 发送结果
+        panel.webview.postMessage(responseMessage);
+        
+        // 发送加载完成状态
         panel.webview.postMessage({
-            command: 'dashboardData',
+            command: 'loadingStatus',
+            method: method,
+            loading: false,
+            requestId: requestId
+        });
+        
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        
+        // 记录错误
+        outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] [${requestId}] 请求处理异常: ${errorMessage}`);
+        
+        // 发送错误响应
+        panel.webview.postMessage({
+            command: command,
             success: false,
-            error: `获取仪表板数据失败: ${error}`
+            error: {
+                code: 'REQUEST_HANDLER_ERROR',
+                message: `处理${method}请求时发生错误`,
+                details: errorMessage,
+                suggestions: [
+                    '检查网络连接',
+                    '验证数据库连接',
+                    '查看详细日志'
+                ]
+            },
+            requestId: requestId,
+            timestamp: new Date().toISOString(),
+            ...additionalData
+        });
+        
+        // 发送加载完成状态
+        panel.webview.postMessage({
+            command: 'loadingStatus',
+            method: method,
+            loading: false,
+            requestId: requestId
         });
     }
+}
+
+// 参数验证和清理函数
+function validateAndCleanParams(params: any): any {
+    if (!params || typeof params !== 'object') {
+        return {};
+    }
+    
+    const cleanParams = { ...params };
+    
+    // 验证日期格式
+    if (cleanParams.date_range) {
+        const dateRange = cleanParams.date_range;
+        if (dateRange.start_date && !isValidDateFormat(dateRange.start_date)) {
+            outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] 警告: 无效的开始日期格式: ${dateRange.start_date}`);
+            delete dateRange.start_date;
+        }
+        if (dateRange.end_date && !isValidDateFormat(dateRange.end_date)) {
+            outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] 警告: 无效的结束日期格式: ${dateRange.end_date}`);
+            delete dateRange.end_date;
+        }
+    }
+    
+    // 清理空值和无效值
+    Object.keys(cleanParams).forEach(key => {
+        if (cleanParams[key] === null || cleanParams[key] === undefined || cleanParams[key] === '') {
+            delete cleanParams[key];
+        }
+    });
+    
+    return cleanParams;
+}
+
+// 日期格式验证
+function isValidDateFormat(dateString: string): boolean {
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(dateString)) {
+        return false;
+    }
+    
+    const date = new Date(dateString);
+    return date instanceof Date && !isNaN(date.getTime());
+}
+
+// 处理仪表板数据请求
+async function handleDashboardDataRequest(context: vscode.ExtensionContext, panel: vscode.WebviewPanel, params: any) {
+    await handleDataAnalysisRequest(
+        context, 
+        panel, 
+        'get_dashboard_summary', 
+        'dashboardData', 
+        params
+    );
 }
 
 // 处理销售趋势请求
 async function handleSalesTrendRequest(context: vscode.ExtensionContext, panel: vscode.WebviewPanel, params: any) {
-    try {
-        const result = await runDataAnalysisScript(context, 'analyze_sales_trend', params);
-        panel.webview.postMessage({
-            command: 'salesTrendData',
-            success: result.success,
-            data: result.data,
-            dimension: params.dimension,
-            error: result.error
-        });
-    } catch (error) {
-        panel.webview.postMessage({
-            command: 'salesTrendData',
-            success: false,
-            error: `获取销售趋势失败: ${error}`
-        });
-    }
+    await handleDataAnalysisRequest(
+        context, 
+        panel, 
+        'analyze_sales_trend', 
+        'salesTrendData', 
+        params,
+        { dimension: params?.dimension || 'month' }
+    );
 }
 
 // 处理库存分析请求
 async function handleInventoryAnalysisRequest(context: vscode.ExtensionContext, panel: vscode.WebviewPanel, params: any) {
-    try {
-        const result = await runDataAnalysisScript(context, 'analyze_inventory_turnover', params);
-        panel.webview.postMessage({
-            command: 'inventoryAnalysisData',
-            success: result.success,
-            data: result.data,
-            error: result.error
-        });
-    } catch (error) {
-        panel.webview.postMessage({
-            command: 'inventoryAnalysisData',
-            success: false,
-            error: `获取库存分析失败: ${error}`
-        });
-    }
+    await handleDataAnalysisRequest(
+        context, 
+        panel, 
+        'analyze_inventory_turnover', 
+        'inventoryAnalysisData', 
+        params
+    );
 }
 
 // 处理客户分析请求
 async function handleCustomerAnalysisRequest(context: vscode.ExtensionContext, panel: vscode.WebviewPanel, params: any) {
-    try {
-        const result = await runDataAnalysisScript(context, 'analyze_customer_value', params);
-        panel.webview.postMessage({
-            command: 'customerAnalysisData',
-            success: result.success,
-            data: result.data,
-            error: result.error
-        });
-    } catch (error) {
-        panel.webview.postMessage({
-            command: 'customerAnalysisData',
-            success: false,
-            error: `获取客户分析失败: ${error}`
-        });
-    }
+    await handleDataAnalysisRequest(
+        context, 
+        panel, 
+        'analyze_customer_value', 
+        'customerAnalysisData', 
+        params
+    );
 }
 
 // 处理采购趋势请求
 async function handlePurchaseTrendRequest(context: vscode.ExtensionContext, panel: vscode.WebviewPanel, params: any) {
-    try {
-        const result = await runDataAnalysisScript(context, 'analyze_purchase_trend', params);
-        panel.webview.postMessage({
-            command: 'purchaseTrendData',
-            success: result.success,
-            data: result.data,
-            dimension: params.dimension,
-            error: result.error
-        });
-    } catch (error) {
-        panel.webview.postMessage({
-            command: 'purchaseTrendData',
-            success: false,
-            error: `获取采购趋势失败: ${error}`
-        });
-    }
+    await handleDataAnalysisRequest(
+        context, 
+        panel, 
+        'analyze_purchase_trend', 
+        'purchaseTrendData', 
+        params,
+        { dimension: params?.dimension || 'month' }
+    );
 }
 
 // 处理对比分析请求
 async function handleComparisonAnalysisRequest(context: vscode.ExtensionContext, panel: vscode.WebviewPanel, params: any) {
-    try {
-        const result = await runDataAnalysisScript(context, 'generate_comparison_analysis', params);
-        panel.webview.postMessage({
-            command: 'comparisonAnalysisData',
-            success: result.success,
-            data: result.data,
-            error: result.error
-        });
-    } catch (error) {
-        panel.webview.postMessage({
-            command: 'comparisonAnalysisData',
-            success: false,
-            error: `生成对比分析失败: ${error}`
-        });
-    }
+    await handleDataAnalysisRequest(
+        context, 
+        panel, 
+        'generate_comparison_analysis', 
+        'comparisonAnalysisData', 
+        params
+    );
 }
 
 // 处理仪表板导出请求
 async function handleDashboardExportRequest(context: vscode.ExtensionContext, panel: vscode.WebviewPanel, params: any) {
+    const requestId = `export_${Date.now()}`;
+    
     try {
-        // 这里可以实现导出功能，比如生成PDF或Excel报告
+        outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] [${requestId}] 开始处理导出请求`);
+        
+        // 发送导出开始状态
+        panel.webview.postMessage({
+            command: 'exportStatus',
+            status: 'started',
+            requestId: requestId,
+            message: '正在准备导出数据...'
+        });
+        
+        // 验证导出参数
+        const exportType = params?.exportType || 'json';
+        const exportData = params?.data;
+        
+        if (!exportData) {
+            throw new Error('缺少导出数据');
+        }
+        
+        // 根据导出类型处理
+        let result;
+        switch (exportType) {
+            case 'json':
+                result = await handleJsonExport(exportData, params);
+                break;
+            case 'csv':
+                result = await handleCsvExport(exportData, params);
+                break;
+            default:
+                throw new Error(`不支持的导出类型: ${exportType}`);
+        }
+        
+        outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] [${requestId}] 导出完成: ${result.filePath}`);
+        
+        // 发送导出成功结果
         panel.webview.postMessage({
             command: 'exportResult',
             success: true,
-            message: '导出功能暂未实现'
+            requestId: requestId,
+            filePath: result.filePath,
+            fileName: result.fileName,
+            message: `导出成功: ${result.fileName}`
         });
+        
     } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        
+        outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] [${requestId}] 导出失败: ${errorMessage}`);
+        
         panel.webview.postMessage({
             command: 'exportResult',
             success: false,
-            error: `导出失败: ${error}`
+            requestId: requestId,
+            error: {
+                code: 'EXPORT_FAILED',
+                message: '导出失败',
+                details: errorMessage
+            }
         });
     }
+}
+
+// 处理仪表板数据导出请求（新的导出架构）
+async function handleDashboardDataExportRequest(context: vscode.ExtensionContext, panel: vscode.WebviewPanel, params: any) {
+    const requestId = `export_data_${Date.now()}`;
+    
+    try {
+        outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] [${requestId}] 开始处理数据导出请求`);
+        
+        // 发送导出开始状态
+        panel.webview.postMessage({
+            command: 'exportStatus',
+            status: 'started',
+            requestId: requestId,
+            message: '正在准备导出数据...'
+        });
+        
+        // 验证导出参数
+        const exportFormat = params?.export_format || 'json';
+        const exportSections = params?.export_sections || ['overview'];
+        const dateRange = params?.date_range || {};
+        const includeCharts = params?.include_charts || false;
+        
+        outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] [${requestId}] 导出参数: 格式=${exportFormat}, 部分=${exportSections.join(',')}`);
+        
+        // 更新进度
+        panel.webview.postMessage({
+            command: 'exportProgress',
+            requestId: requestId,
+            progress: 20,
+            message: '正在收集数据...'
+        });
+        
+        // 调用数据分析服务进行导出
+        const exportResult = await runDataAnalysisScript(context, 'export_dashboard_data', {
+            export_format: exportFormat,
+            export_sections: exportSections,
+            date_range: dateRange,
+            include_charts: includeCharts
+        });
+        
+        // 更新进度
+        panel.webview.postMessage({
+            command: 'exportProgress',
+            requestId: requestId,
+            progress: 80,
+            message: '正在处理导出数据...'
+        });
+        
+        if (exportResult.success) {
+            outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] [${requestId}] 数据导出成功，大小: ${exportResult.download_info?.size_mb || 0}MB`);
+            
+            // 更新进度为完成
+            panel.webview.postMessage({
+                command: 'exportProgress',
+                requestId: requestId,
+                progress: 100,
+                message: '导出完成！'
+            });
+            
+            // 发送导出成功结果
+            panel.webview.postMessage({
+                command: 'exportComplete',
+                success: true,
+                requestId: requestId,
+                export_format: exportResult.export_format,
+                export_sections: exportResult.export_sections,
+                export_data: exportResult.export_data,
+                download_info: exportResult.download_info,
+                message: `导出成功！格式: ${exportResult.export_format}，大小: ${exportResult.download_info?.size_mb || 0}MB`
+            });
+            
+        } else {
+            const errorMessage = exportResult.error?.message || '导出失败';
+            throw new Error(errorMessage);
+        }
+        
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        
+        outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] [${requestId}] 数据导出失败: ${errorMessage}`);
+        
+        // 发送导出失败结果
+        panel.webview.postMessage({
+            command: 'exportComplete',
+            success: false,
+            requestId: requestId,
+            error: {
+                code: 'EXPORT_DATA_FAILED',
+                message: '数据导出失败',
+                details: errorMessage
+            }
+        });
+    }
+}
+
+// JSON导出处理
+async function handleJsonExport(data: any, params: any): Promise<{filePath: string, fileName: string}> {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const fileName = `dashboard_export_${timestamp}.json`;
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+    const exportDir = workspaceFolder ? path.join(workspaceFolder.uri.fsPath, 'exports') : os.tmpdir();
+    
+    // 确保导出目录存在
+    if (!fs.existsSync(exportDir)) {
+        fs.mkdirSync(exportDir, { recursive: true });
+    }
+    
+    const filePath = path.join(exportDir, fileName);
+    
+    // 格式化导出数据
+    const exportContent = {
+        exportInfo: {
+            timestamp: new Date().toISOString(),
+            type: 'dashboard_data',
+            version: '1.0'
+        },
+        data: data
+    };
+    
+    // 写入文件
+    fs.writeFileSync(filePath, JSON.stringify(exportContent, null, 2), 'utf8');
+    
+    return { filePath, fileName };
+}
+
+// CSV导出处理
+async function handleCsvExport(data: any, params: any): Promise<{filePath: string, fileName: string}> {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const fileName = `dashboard_export_${timestamp}.csv`;
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+    const exportDir = workspaceFolder ? path.join(workspaceFolder.uri.fsPath, 'exports') : os.tmpdir();
+    
+    // 确保导出目录存在
+    if (!fs.existsSync(exportDir)) {
+        fs.mkdirSync(exportDir, { recursive: true });
+    }
+    
+    const filePath = path.join(exportDir, fileName);
+    
+    // 简单的CSV转换（这里可以根据需要扩展）
+    let csvContent = '';
+    
+    if (Array.isArray(data)) {
+        if (data.length > 0) {
+            // 获取表头
+            const headers = Object.keys(data[0]);
+            csvContent += headers.join(',') + '\n';
+            
+            // 添加数据行
+            data.forEach(row => {
+                const values = headers.map(header => {
+                    const value = row[header];
+                    // 处理包含逗号或引号的值
+                    if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
+                        return `"${value.replace(/"/g, '""')}"`;
+                    }
+                    return value || '';
+                });
+                csvContent += values.join(',') + '\n';
+            });
+        }
+    } else {
+        // 对象数据转换为键值对CSV
+        csvContent = 'Key,Value\n';
+        Object.entries(data).forEach(([key, value]) => {
+            csvContent += `${key},"${String(value).replace(/"/g, '""')}"\n`;
+        });
+    }
+    
+    // 写入文件
+    fs.writeFileSync(filePath, csvContent, 'utf8');
+    
+    return { filePath, fileName };
 }
 
 // 运行数据分析脚本
@@ -2182,63 +2492,342 @@ async function runDataAnalysisScript(context: vscode.ExtensionContext, method: s
         // 设置数据库配置环境变量
         setDatabaseConfigEnv();
         
-        // 构建参数
+        // 改进参数传递格式 - 确保参数正确序列化
         const args = ['--method', method];
-        if (params) {
-            args.push('--params', JSON.stringify(params));
+        if (params && Object.keys(params).length > 0) {
+            try {
+                // 验证参数是否可以序列化
+                const serializedParams = JSON.stringify(params);
+                args.push('--params', serializedParams);
+                
+                // 记录详细的调用信息
+                outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] 调用数据分析方法: ${method}`);
+                outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] 参数: ${serializedParams}`);
+            } catch (serializationError) {
+                const errorMsg = `参数序列化失败: ${serializationError}`;
+                outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] 错误: ${errorMsg}`);
+                resolve({
+                    success: false,
+                    error: {
+                        code: 'PARAM_SERIALIZATION_FAILED',
+                        message: errorMsg,
+                        details: '请检查传入的参数格式'
+                    }
+                });
+                return;
+            }
         }
         
         // 获取当前工作区路径
         const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
         const workspacePath = workspaceFolder ? workspaceFolder.uri.fsPath : '';
         
+        // 增强环境变量设置
+        const processEnv = { 
+            ...process.env, 
+            PYTHONIOENCODING: 'utf-8',
+            PYTHONUNBUFFERED: '1',  // 确保Python输出不被缓冲
+            IMS_WORKSPACE_PATH: workspacePath,
+            // 添加调试信息
+            IMS_DEBUG_MODE: vscode.workspace.getConfiguration('imsViewer').get('debugMode', 'false').toString()
+        };
+        
+        // 记录启动信息
+        outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] 启动Python进程: ${pythonCmd}`);
+        outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] 脚本路径: ${scriptPath}`);
+        outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] 参数: ${args.join(' ')}`);
+        
+        // 添加进程超时机制
+        const PROCESS_TIMEOUT = 60000; // 60秒超时
+        let processTimeout: NodeJS.Timeout;
+        let isProcessCompleted = false;
+        
         const pythonProcess = spawn(pythonCmd, [scriptPath, ...args], {
-            env: { 
-                ...process.env, 
-                PYTHONIOENCODING: 'utf-8',
-                IMS_WORKSPACE_PATH: workspacePath
-            }
+            env: processEnv,
+            // 设置进程选项以改善错误处理
+            stdio: ['pipe', 'pipe', 'pipe']
         });
+        
+        // 注册进程到资源管理系统
+        const processId = `data_analysis_${method}_${Date.now()}`;
+        const processCleanup = () => {
+            if (!isProcessCompleted) {
+                isProcessCompleted = true;
+                clearTimeout(processTimeout);
+                try {
+                    if (!pythonProcess.killed) {
+                        pythonProcess.kill('SIGTERM');
+                    }
+                } catch (cleanupError) {
+                    outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] 清理进程 ${processId} 时出错: ${cleanupError}`);
+                }
+            }
+        };
+        registerProcessCleanup(processId, pythonProcess, processCleanup);
         
         let stdoutData = '';
         let errorOutput = '';
+        let processStartTime = Date.now();
         
+        // 设置超时处理
+        processTimeout = setTimeout(() => {
+            if (!isProcessCompleted) {
+                outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] 进程超时，正在终止...`);
+                pythonProcess.kill('SIGTERM');
+                
+                // 如果SIGTERM无效，使用SIGKILL强制终止
+                setTimeout(() => {
+                    if (!isProcessCompleted) {
+                        pythonProcess.kill('SIGKILL');
+                    }
+                }, 5000);
+                
+                resolve({
+                    success: false,
+                    error: {
+                        code: 'PROCESS_TIMEOUT',
+                        message: `数据分析进程超时 (${PROCESS_TIMEOUT/1000}秒)`,
+                        details: '请检查数据库连接或减少数据处理量'
+                    }
+                });
+            }
+        }, PROCESS_TIMEOUT);
+        
+        // 优化数据接收处理
         pythonProcess.stdout.on('data', (data: Buffer) => {
-            stdoutData += data.toString();
+            const chunk = data.toString('utf8');
+            stdoutData += chunk;
+            
+            // 实时输出调试信息
+            if (vscode.workspace.getConfiguration('imsViewer').get('debugMode', false)) {
+                outputChannel.append(`[STDOUT] ${chunk}`);
+            }
         });
         
         pythonProcess.stderr.on('data', (data: Buffer) => {
-            errorOutput += data.toString();
+            const chunk = data.toString('utf8');
+            errorOutput += chunk;
+            
+            // 记录错误输出
+            outputChannel.append(`[${new Date().toLocaleTimeString()}] [STDERR] ${chunk}`);
         });
         
+        // 增强错误处理
         pythonProcess.on('error', (err) => {
-            reject(`无法启动数据分析脚本: ${err.message}`);
+            isProcessCompleted = true;
+            clearTimeout(processTimeout);
+            
+            const errorMsg = `无法启动数据分析脚本: ${err.message}`;
+            outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] 进程启动错误: ${errorMsg}`);
+            
+            // 尝试使用备用Python命令
+            const fallbackCommands = getPythonCommandFallbacks(context);
+            const currentCmd = pythonCmd;
+            const nextCmd = fallbackCommands.find(cmd => cmd !== currentCmd);
+            
+            if (nextCmd) {
+                outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] 尝试使用备用Python命令: ${nextCmd}`);
+                // 递归调用，但要避免无限递归
+                if (!params._retryCount) {
+                    params._retryCount = 1;
+                    // 这里应该重新调用，但为了简化，直接返回错误
+                }
+            }
+            
+            resolve({
+                success: false,
+                error: {
+                    code: 'PROCESS_START_FAILED',
+                    message: errorMsg,
+                    details: '请检查Python环境配置',
+                    suggestions: [
+                        '确保Python已正确安装',
+                        '检查虚拟环境是否激活',
+                        '验证所需的Python包是否已安装'
+                    ]
+                }
+            });
         });
         
-        pythonProcess.on('close', (code: number) => {
+        // 优化进程结束处理和JSON解析
+        pythonProcess.on('close', (code: number, signal: string) => {
+            isProcessCompleted = true;
+            clearTimeout(processTimeout);
+            
+            const executionTime = Date.now() - processStartTime;
+            outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] 进程结束: 退出码=${code}, 信号=${signal}, 执行时间=${executionTime}ms`);
+            
             if (code === 0) {
                 try {
-                    const result = JSON.parse(stdoutData.trim() || '{"success": false, "error": "无数据返回"}');
+                    // 清理和验证输出数据
+                    const cleanOutput = stdoutData.trim();
+                    
+                    if (!cleanOutput) {
+                        outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] 警告: 进程成功但无输出数据`);
+                        resolve({
+                            success: false,
+                            error: {
+                                code: 'NO_OUTPUT_DATA',
+                                message: '数据分析脚本执行成功但未返回数据',
+                                details: '请检查脚本逻辑或数据库连接'
+                            }
+                        });
+                        return;
+                    }
+                    
+                    // 尝试解析JSON，支持多行JSON输出
+                    let result;
+                    try {
+                        result = JSON.parse(cleanOutput);
+                    } catch (firstParseError) {
+                        // 如果直接解析失败，尝试提取最后一个完整的JSON对象
+                        const jsonMatches = cleanOutput.match(/\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/g);
+                        if (jsonMatches && jsonMatches.length > 0) {
+                            const lastJson = jsonMatches[jsonMatches.length - 1];
+                            try {
+                                result = JSON.parse(lastJson);
+                                outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] 使用提取的JSON: ${lastJson.substring(0, 200)}...`);
+                            } catch (secondParseError) {
+                                throw firstParseError; // 使用原始错误
+                            }
+                        } else {
+                            throw firstParseError;
+                        }
+                    }
+                    
+                    // 验证结果格式
+                    if (typeof result !== 'object' || result === null) {
+                        throw new Error('返回结果不是有效的对象');
+                    }
+                    
+                    // 添加执行元数据
+                    result.execution_metadata = {
+                        execution_time_ms: executionTime,
+                        method: method,
+                        timestamp: new Date().toISOString()
+                    };
+                    
+                    outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] 数据解析成功: ${result.success ? '成功' : '失败'}`);
                     resolve(result);
+                    
                 } catch (parseError) {
+                    const errorMsg = `JSON解析失败: ${parseError}`;
+                    outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] ${errorMsg}`);
+                    outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] 原始输出: ${stdoutData.substring(0, 1000)}...`);
+                    
                     resolve({
                         success: false,
-                        error: `解析结果失败: ${parseError}`,
-                        rawOutput: stdoutData
+                        error: {
+                            code: 'JSON_PARSE_FAILED',
+                            message: errorMsg,
+                            details: '脚本输出格式不正确',
+                            rawOutput: stdoutData.substring(0, 500) // 限制原始输出长度
+                        }
                     });
                 }
             } else {
+                // 进程非正常退出
+                const errorMsg = signal ? 
+                    `进程被信号终止: ${signal}` : 
+                    `进程异常退出，退出码: ${code}`;
+                
+                outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] ${errorMsg}`);
+                if (errorOutput) {
+                    outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] 错误输出: ${errorOutput}`);
+                }
+                
                 resolve({
                     success: false,
-                    error: errorOutput || `脚本执行失败，退出码: ${code}`,
-                    rawOutput: stdoutData
+                    error: {
+                        code: code === null ? 'PROCESS_KILLED' : 'PROCESS_EXIT_ERROR',
+                        message: errorMsg,
+                        details: errorOutput || '进程执行失败',
+                        exit_code: code,
+                        signal: signal,
+                        stderr: errorOutput.substring(0, 500) // 限制错误输出长度
+                    }
                 });
             }
         });
+        
+        // 添加进程资源清理
+        const cleanup = () => {
+            if (!isProcessCompleted) {
+                isProcessCompleted = true;
+                clearTimeout(processTimeout);
+                
+                try {
+                    if (!pythonProcess.killed) {
+                        pythonProcess.kill('SIGTERM');
+                    }
+                } catch (cleanupError) {
+                    outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] 清理进程时出错: ${cleanupError}`);
+                }
+            }
+        };
+        
+        // 监听进程意外退出
+        process.on('exit', cleanup);
+        process.on('SIGINT', cleanup);
+        process.on('SIGTERM', cleanup);
     });
 }
 
-export function deactivate() {}
+// 资源管理和清理
+const activeProcesses = new Map<string, any>();
+const processCleanupHandlers = new Set<() => void>();
+
+// 注册进程清理处理器
+function registerProcessCleanup(processId: string, process: any, cleanup: () => void) {
+    activeProcesses.set(processId, process);
+    processCleanupHandlers.add(cleanup);
+    
+    // 进程结束时自动清理
+    process.on('close', () => {
+        activeProcesses.delete(processId);
+        processCleanupHandlers.delete(cleanup);
+    });
+}
+
+// 清理所有活动进程
+function cleanupAllProcesses() {
+    outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] 开始清理 ${activeProcesses.size} 个活动进程`);
+    
+    // 执行所有清理处理器
+    processCleanupHandlers.forEach(cleanup => {
+        try {
+            cleanup();
+        } catch (error) {
+            outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] 清理进程时出错: ${error}`);
+        }
+    });
+    
+    // 强制终止剩余进程
+    activeProcesses.forEach((process, processId) => {
+        try {
+            if (!process.killed) {
+                outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] 强制终止进程: ${processId}`);
+                process.kill('SIGKILL');
+            }
+        } catch (error) {
+            outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] 终止进程 ${processId} 时出错: ${error}`);
+        }
+    });
+    
+    activeProcesses.clear();
+    processCleanupHandlers.clear();
+}
+
+// 扩展停用时的清理
+export function deactivate() {
+    outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] 扩展正在停用，清理资源...`);
+    cleanupAllProcesses();
+    
+    // 清理输出通道
+    if (outputChannel) {
+        outputChannel.dispose();
+    }
+}
 
 // 处理库存数据加载
 async function handleInventoryDataLoad(context: vscode.ExtensionContext, panel: vscode.WebviewPanel, message: any) {

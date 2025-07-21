@@ -9,10 +9,10 @@ import os
 from typing import Optional
 from pymongo import MongoClient
 from pymongo.database import Database
-from database_config import get_database_config, build_mongo_uri
-from config_manager import get_database_config as get_new_database_config
-from enhanced_logger import get_logger
-from error_handler import retry_on_failure, DatabaseError
+from scripts.database_config import get_database_config, build_mongo_uri
+from scripts.config_manager import get_database_config as get_new_database_config
+from scripts.enhanced_logger import get_logger
+from scripts.error_handler import retry_on_failure, DatabaseError
 
 
 class DatabaseConnection:
