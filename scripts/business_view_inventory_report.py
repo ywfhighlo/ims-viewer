@@ -10,6 +10,11 @@ import json
 import argparse
 from datetime import datetime
 from typing import List, Dict, Any, Optional
+import os
+
+# 添加项目根目录到Python路径
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from scripts.enhanced_logger import EnhancedLogger
 from scripts.db_connection import get_database_connection
 from scripts.error_handler import error_handler_decorator, safe_execute, global_error_handler
