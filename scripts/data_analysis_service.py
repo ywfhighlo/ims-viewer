@@ -54,6 +54,20 @@ class DataAnalysisService:
             'avg_response_time': 0.0
         }
     
+    def get_dashboard_data(self, params: Dict[str, Any] = None) -> Dict[str, Any]:
+        """
+        获取仪表板数据（前端兼容接口）
+        
+        Args:
+            params: 参数字典，包含date_range等
+            
+        Returns:
+            仪表板数据
+        """
+        if params is None:
+            params = {}
+        return self.get_dashboard_summary(params)
+    
     def get_dashboard_summary(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """
         获取仪表板概览数据（带缓存）
@@ -2427,6 +2441,9 @@ class DataAnalysisService:
             if method == 'get_dashboard_summary':
                 data = self.get_dashboard_summary(validated_params)
             
+            elif method == 'get_dashboard_data':
+                data = self.get_dashboard_data(validated_params)
+            
             elif method == 'analyze_sales_trend':
                 data = self.analyze_sales_trend(validated_params)
             
@@ -3261,7 +3278,7 @@ def main():
         if args.method:
             # 验证方法名称
             valid_methods = [
-                'get_dashboard_summary', 'analyze_sales_trend', 'analyze_customer_value',
+                'get_dashboard_summary', 'get_dashboard_data', 'analyze_sales_trend', 'analyze_customer_value',
                 'analyze_inventory_turnover', 'generate_comparison_analysis',
                 'invalidate_cache', 'get_cache_stats', 'optimize_query_performance',
                 'get_pagination_config', 'benchmark_performance', 'export_analysis_data'

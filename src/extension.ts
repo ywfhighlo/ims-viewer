@@ -8,6 +8,7 @@ import { MaterialWebviewProvider } from './materialWebviewProvider';
 import { DataEntryWebviewProvider } from './dataEntryWebviewProvider';
 import { CustomerManagementWebviewProvider } from './customerManagementWebviewProvider';
 import { SupplierManagementWebviewProvider } from './supplierManagementWebviewProvider';
+import { DataAnalysisDashboardWebviewProvider } from './dataAnalysisDashboardWebviewProvider';
 
 let outputChannel: vscode.OutputChannel;
 
@@ -162,6 +163,11 @@ export function activate(context: vscode.ExtensionContext) {
         supplierManagementProvider.show();
     });
 
+    const dataAnalysisDashboardProvider = new DataAnalysisDashboardWebviewProvider(context);
+    const showDataAnalysisDashboardCommand = vscode.commands.registerCommand('ims.showDataAnalysisDashboard', () => {
+        dataAnalysisDashboardProvider.show();
+    });
+
     // 5. Register other utility and view commands
     const refreshCommand = vscode.commands.registerCommand('ims.refreshTreeView', () => {
         imsProvider.refresh();
@@ -196,9 +202,7 @@ export function activate(context: vscode.ExtensionContext) {
         showInventoryManagementPanel(context);
     });
 
-    const showDataAnalysisDashboardCommand = vscode.commands.registerCommand('ims.showDataAnalysisDashboard', () => {
-        showDataAnalysisDashboard(context);
-    });
+    // DataAnalysisDashboardWebviewProvider command is registered above
 
     // 6. Push all subscriptions
     context.subscriptions.push(

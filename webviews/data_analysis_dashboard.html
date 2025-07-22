@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>数据分析仪表板</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', sans-serif; background: #f5f7fa; color: #333; }
@@ -12,7 +13,6 @@
         .header h1 { font-size: 2.5em; margin-bottom: 10px; }
         .header p { font-size: 1.1em; opacity: 0.9; }
         
-        /* 工具栏 */
         .toolbar { background: white; padding: 20px; border-radius: 12px; margin-bottom: 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
         .toolbar-row { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
         .date-group { display: flex; gap: 15px; align-items: center; }
@@ -21,126 +21,33 @@
         .btn { padding: 12px 24px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; transition: all 0.3s ease; }
         .btn-primary { background: #007bff; color: white; }
         .btn-primary:hover { background: #0056b3; }
-        .btn-secondary { background: #6c757d; color: white; }
-        .btn-secondary:hover { background: #545b62; }
         
-        /* 卡片网格 */
-        .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 30px; }
         .metric-card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-left: 4px solid #007bff; }
         .metric-card h3 { color: #495057; font-size: 1.1em; margin-bottom: 15px; }
         .metric-value { font-size: 2.5em; font-weight: bold; color: #007bff; margin-bottom: 5px; }
         .metric-label { color: #6c757d; font-size: 0.9em; }
-        .metric-change { font-size: 0.85em; margin-top: 10px; }
-        .metric-change.positive { color: #28a745; }
-        .metric-change.negative { color: #dc3545; }
         
-        /* 分析面板 */
         .analysis-panels { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; }
         .panel { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
         .panel-header { background: #f8f9fa; padding: 20px; border-bottom: 1px solid #e9ecef; }
         .panel-header h3 { color: #495057; font-size: 1.2em; }
         .panel-content { padding: 25px; }
         
-        /* 图表容器 */
         .chart-container { height: 300px; position: relative; }
         .chart-placeholder { display: flex; align-items: center; justify-content: center; height: 100%; color: #6c757d; font-size: 1.1em; background: #f8f9fa; border-radius: 8px; }
         
-        /* 表格样式 */
-        .data-table { width: 100%; border-collapse: collapse; }
-        .data-table th, .data-table td { padding: 12px; text-align: left; border-bottom: 1px solid #e9ecef; }
-        .data-table th { background: #f8f9fa; font-weight: 600; color: #495057; }
-        .data-table tbody tr:hover { background: #f8f9fa; }
-        
-        /* 标签页 */
-        .analysis-tabs { display: flex; background: #f8f9fa; border-radius: 8px; margin-bottom: 20px; padding: 4px; }
-        .analysis-tab { flex: 1; padding: 12px 20px; background: transparent; border: none; cursor: pointer; font-size: 14px; font-weight: 500; border-radius: 6px; transition: all 0.3s ease; }
-        .analysis-tab.active { background: white; color: #007bff; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
-        
-        /* 加载状态 */
         .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 9999; }
         .loading-content { background: white; padding: 30px; border-radius: 12px; text-align: center; min-width: 320px; }
         .loading-spinner { width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #007bff; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px; }
+        
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         
-        /* 响应式设计 - 改进版 */
-        @media (max-width: 1200px) {
-            .container { padding: 15px; }
-            .dashboard-grid { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; }
-            .analysis-panels { gap: 15px; }
-        }
-        
         @media (max-width: 768px) {
-            .header h1 { font-size: 2em; }
-            .header p { font-size: 1em; }
             .analysis-panels { grid-template-columns: 1fr; }
             .toolbar-row { flex-direction: column; align-items: stretch; gap: 15px; }
-            .date-group { flex-wrap: wrap; gap: 10px; }
-            .date-group input { width: 100%; max-width: 200px; }
-            .btn { width: 100%; }
             .chart-container { height: 250px; }
-            .metric-card { padding: 20px; }
-            .metric-value { font-size: 2em; }
-            .panel-content { padding: 20px; }
-            .analysis-tab { padding: 10px 15px; font-size: 13px; }
         }
-        
-        @media (max-width: 480px) {
-            .container { padding: 10px; }
-            .header { padding: 20px; margin-bottom: 20px; }
-            .header h1 { font-size: 1.8em; }
-            .dashboard-grid { grid-template-columns: 1fr; gap: 10px; }
-            .chart-container { height: 200px; }
-            .metric-card { padding: 15px; }
-            .metric-value { font-size: 1.8em; }
-            .data-table { font-size: 12px; }
-            .data-table th, .data-table td { padding: 8px; }
-        }
-        
-        /* 图表交互增强 */
-        .chart-container:hover { transform: translateY(-2px); transition: transform 0.3s ease; }
-        .chart-container canvas { cursor: crosshair; }
-        
-        /* 加载动画增强 */
-        .loading-spinner {
-            background: conic-gradient(from 0deg, #007bff, #28a745, #ffc107, #dc3545, #007bff);
-            border-radius: 50%;
-            animation: spin 2s linear infinite;
-        }
-        
-        /* 工具提示增强 */
-        .enhanced-tooltip {
-            position: absolute;
-            background: rgba(0, 0, 0, 0.9);
-            color: white;
-            padding: 8px 12px;
-            border-radius: 6px;
-            font-size: 12px;
-            pointer-events: none;
-            z-index: 1000;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-        
-        /* 状态颜色 */
-        .status-high { color: #28a745; font-weight: bold; }
-        .status-medium { color: #ffc107; font-weight: bold; }
-        .status-low { color: #dc3545; font-weight: bold; }
-        
-        /* 进度条 */
-        .progress-bar { width: 100%; height: 8px; background: #e9ecef; border-radius: 4px; overflow: hidden; margin: 10px 0; }
-        .progress-fill { height: 100%; background: #007bff; transition: width 0.3s ease; }
-        
-        /* 错误和成功消息 */
-        .error-message { background: #f8d7da; color: #721c24; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #dc3545; }
-        .success-message { background: #d4edda; color: #155724; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #28a745; }
-        .info-message { background: #d1ecf1; color: #0c5460; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #17a2b8; }
-        
-        /* 工具提示 */
-        .tooltip { position: relative; display: inline-block; cursor: help; }
-        .tooltip .tooltiptext { visibility: hidden; width: 200px; background-color: #555; color: #fff; text-align: center; border-radius: 6px; padding: 8px; position: absolute; z-index: 1; bottom: 125%; left: 50%; margin-left: -100px; opacity: 0; transition: opacity 0.3s; font-size: 12px; }
-        .tooltip:hover .tooltiptext { visibility: visible; opacity: 1; }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -151,7 +58,6 @@
             <p>实时业务洞察 | 智能分析 | 数据驱动决策</p>
         </div>
 
-        <!-- 工具栏 -->
         <div class="toolbar">
             <div class="toolbar-row">
                 <div class="date-group">
@@ -161,173 +67,38 @@
                     <input type="date" id="end-date" name="end_date">
                 </div>
                 <button class="btn btn-primary" onclick="refreshDashboard()">🔄 刷新数据</button>
-                <button class="btn btn-secondary" onclick="showExportDialog()">📁 导出报告</button>
             </div>
         </div>
 
-        <!-- 关键指标卡片 -->
         <div id="metrics-grid" class="dashboard-grid">
             <!-- 动态生成的指标卡片 -->
         </div>
 
-        <!-- 分析面板 -->
         <div class="analysis-panels">
-            <!-- 销售趋势分析 -->
             <div class="panel">
                 <div class="panel-header">
                     <h3>📈 销售趋势分析</h3>
                 </div>
                 <div class="panel-content">
-                    <div class="analysis-tabs">
-                        <button class="analysis-tab active" onclick="showSalesTrend('month')">月度趋势</button>
-                        <button class="analysis-tab" onclick="showSalesTrend('quarter')">季度趋势</button>
-                        <button class="analysis-tab" onclick="showSalesTrend('product')">产品分析</button>
-                    </div>
                     <div class="chart-container">
                         <canvas id="salesTrendChart"></canvas>
                     </div>
                 </div>
             </div>
 
-            <!-- 客户价值分析 -->
             <div class="panel">
                 <div class="panel-header">
-                    <h3>👥 客户价值分析 (RFM)</h3>
+                    <h3>👥 客户价值分析</h3>
                 </div>
                 <div class="panel-content">
-                    <div id="customer-analysis" class="tab-content active">
-                        <div class="chart-container">
-                            <canvas id="customerValueChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 详细分析标签页 -->
-        <div class="panel">
-            <div class="panel-header">
-                <h3>🔍 详细分析</h3>
-            </div>
-            <div class="panel-content">
-                <div class="analysis-tabs">
-                    <button class="analysis-tab active" onclick="showAnalysisTab('inventory')">库存分析</button>
-                    <button class="analysis-tab" onclick="showAnalysisTab('customer')">客户分析</button>
-                    <button class="analysis-tab" onclick="showAnalysisTab('purchase')">采购分析</button>
-                    <button class="analysis-tab" onclick="showAnalysisTab('comparison')">对比分析</button>
-                </div>
-
-                <!-- 库存分析 -->
-                <div id="inventory-analysis" class="tab-content active">
-                    <h4>📦 库存周转分析</h4>
-                    <div id="inventory-summary"></div>
                     <div class="chart-container">
-                        <canvas id="inventoryChart"></canvas>
+                        <canvas id="customerValueChart"></canvas>
                     </div>
-                    <div id="dead-stock-table"></div>
-                </div>
-
-                <!-- 客户分析 -->
-                <div id="customer-detailed-analysis" class="tab-content">
-                    <h4>👤 客户详细分析</h4>
-                    <div id="customer-summary"></div>
-                    <div id="customer-table"></div>
-                </div>
-
-                <!-- 采购分析 -->
-                <div id="purchase-analysis" class="tab-content">
-                    <h4>🛒 采购趋势分析</h4>
-                    <div class="analysis-tabs">
-                        <button class="analysis-tab active" onclick="showPurchaseTrend('supplier')">供应商分析</button>
-                        <button class="analysis-tab" onclick="showPurchaseTrend('material')">物料分析</button>
-                        <button class="analysis-tab" onclick="showPurchaseTrend('month')">月度趋势</button>
-                    </div>
-                    <div class="chart-container">
-                        <canvas id="purchaseTrendChart"></canvas>
-                    </div>
-                </div>
-
-                <!-- 对比分析 -->
-                <div id="comparison-analysis" class="tab-content">
-                    <h4>⚖️ 多维度对比分析</h4>
-                    <div class="toolbar-row" style="margin-bottom: 20px;">
-                        <select id="comparison-metrics" multiple style="width: 200px; height: 80px;">
-                            <option value="total_sales">总销售额</option>
-                            <option value="sales_count">销售笔数</option>
-                            <option value="total_purchases">总采购额</option>
-                            <option value="purchase_count">采购笔数</option>
-                        </select>
-                        <select id="comparison-dimensions" multiple style="width: 200px; height: 80px;">
-                            <option value="month">月份</option>
-                            <option value="product">产品</option>
-                            <option value="customer">客户</option>
-                            <option value="supplier">供应商</option>
-                        </select>
-                        <button class="btn btn-primary" onclick="generateComparison()">生成对比</button>
-                    </div>
-                    <div id="comparison-results"></div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- 导出对话框 -->
-    <div id="exportDialog" class="loading-overlay" style="display: none;">
-        <div class="loading-content" style="min-width: 500px; max-width: 600px;">
-            <h3>📁 导出数据分析报告</h3>
-            <div style="margin: 20px 0; text-align: left;">
-                <div style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px; font-weight: 500;">导出格式：</label>
-                    <select id="exportFormat" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                        <option value="json">JSON 格式</option>
-                        <option value="csv">CSV 格式</option>
-                        <option value="excel">Excel 格式 (预留)</option>
-                        <option value="pdf">PDF 格式 (预留)</option>
-                    </select>
-                </div>
-                
-                <div style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px; font-weight: 500;">导出内容：</label>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                        <label style="display: flex; align-items: center; gap: 8px;">
-                            <input type="checkbox" id="exportOverview" checked> 业务概览
-                        </label>
-                        <label style="display: flex; align-items: center; gap: 8px;">
-                            <input type="checkbox" id="exportSalesTrend" checked> 销售趋势
-                        </label>
-                        <label style="display: flex; align-items: center; gap: 8px;">
-                            <input type="checkbox" id="exportCustomerAnalysis" checked> 客户分析
-                        </label>
-                        <label style="display: flex; align-items: center; gap: 8px;">
-                            <input type="checkbox" id="exportInventoryAnalysis" checked> 库存分析
-                        </label>
-                        <label style="display: flex; align-items: center; gap: 8px;">
-                            <input type="checkbox" id="exportComparisonAnalysis"> 对比分析
-                        </label>
-                        <label style="display: flex; align-items: center; gap: 8px;">
-                            <input type="checkbox" id="includeCharts" checked> 包含图表数据
-                        </label>
-                    </div>
-                </div>
-                
-                <div id="exportStatus" style="margin: 15px 0; padding: 10px; background: #f8f9fa; border-radius: 4px; display: none;">
-                    <div id="exportProgress" style="margin-bottom: 10px;">
-                        <div class="progress-bar">
-                            <div class="progress-fill" id="exportProgressBar" style="width: 0%;"></div>
-                        </div>
-                        <div id="exportProgressText" style="font-size: 12px; color: #666; text-align: center;">准备导出...</div>
-                    </div>
-                </div>
-            </div>
-            
-            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
-                <button class="btn btn-secondary" onclick="closeExportDialog()">取消</button>
-                <button class="btn btn-primary" onclick="startExport()">开始导出</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- 加载遮罩层 -->
     <div id="loadingOverlay" class="loading-overlay">
         <div class="loading-content">
             <div class="loading-spinner"></div>
@@ -337,28 +108,74 @@
     </div>
 
     <script>
+        // VS Code API
+        const vsCodeApi = (typeof acquireVsCodeApi !== 'undefined') ? acquireVsCodeApi() : {
+            postMessage: function(message) {
+                console.log('模拟VS Code API调用:', message);
+            }
+        };
+        
         // 全局变量
-        const vscode = acquireVsCodeApi();
         let dashboardData = null;
         let salesTrendChart = null;
         let customerValueChart = null;
-        let inventoryChart = null;
-        let purchaseTrendChart = null;
 
-        // 页面加载完成后初始化
+        // 页面初始化
         document.addEventListener('DOMContentLoaded', function() {
-            // 设置默认日期（最近3个月）
             const today = new Date();
             const threeMonthsAgo = new Date(today.getFullYear(), today.getMonth() - 3, 1);
             
             document.getElementById('start-date').value = threeMonthsAgo.toISOString().split('T')[0];
             document.getElementById('end-date').value = today.toISOString().split('T')[0];
 
-            // 加载初始数据
-            refreshDashboard();
+            // 检查是否在VS Code环境中
+            if (typeof acquireVsCodeApi === 'undefined') {
+                // 浏览器环境，加载模拟数据
+                loadMockData();
+            } else {
+                // VS Code环境，请求真实数据
+                refreshDashboard();
+            }
         });
 
-        // 监听来自后端的消息
+        // 加载模拟数据（用于浏览器预览）
+        function loadMockData() {
+            showLoading('正在加载模拟数据...', '展示仪表板功能...');
+            
+            // 模拟延迟
+            setTimeout(() => {
+                const mockData = {
+                    overview: {
+                        total_sales: 1250000.50,
+                        total_sales_count: 342,
+                        active_customers: 89,
+                        avg_order_value: 3654.68
+                    },
+                    sales_trend: [
+                        { period: '2024-01', total_sales: 180000 },
+                        { period: '2024-02', total_sales: 220000 },
+                        { period: '2024-03', total_sales: 195000 },
+                        { period: '2024-04', total_sales: 240000 },
+                        { period: '2024-05', total_sales: 210000 },
+                        { period: '2024-06', total_sales: 205000 }
+                    ],
+                    top_customers: [
+                        { customer_name: '华为技术有限公司', monetary: 85000 },
+                        { customer_name: '腾讯科技', monetary: 72000 },
+                        { customer_name: '阿里巴巴集团', monetary: 68000 },
+                        { customer_name: '百度在线', monetary: 55000 },
+                        { customer_name: '京东集团', monetary: 48000 },
+                        { customer_name: '小米科技', monetary: 42000 },
+                        { customer_name: '字节跳动', monetary: 38000 },
+                        { customer_name: '美团点评', monetary: 35000 }
+                    ]
+                };
+                
+                handleDashboardData(mockData);
+            }, 1500);
+        }
+
+        // 监听消息
         window.addEventListener('message', event => {
             const message = event.data;
             
@@ -366,46 +183,22 @@
                 case 'dashboardData':
                     handleDashboardData(message.data);
                     break;
-                case 'salesTrendData':
-                    handleSalesTrendData(message.data, message.dimension);
-                    break;
-                case 'customerAnalysisData':
-                    handleCustomerAnalysisData(message.data);
-                    break;
-                case 'inventoryAnalysisData':
-                    handleInventoryAnalysisData(message.data);
-                    break;
-                case 'comparisonAnalysisData':
-                    handleComparisonAnalysisData(message.data);
-                    break;
-                case 'exportStatus':
-                    handleExportStatus(message);
-                    break;
-                case 'exportProgress':
-                    handleExportProgress(message);
-                    break;
-                case 'exportComplete':
-                    handleExportComplete(message);
-                    break;
                 case 'error':
-                    handleError(message.error || message.message);
+                    handleError(message.error);
                     break;
+                default:
+                    console.log('未知消息类型:', message.command);
             }
         });
 
         // 刷新仪表板
         function refreshDashboard() {
+            showLoading('正在加载仪表板数据...', '分析您的业务数据，请稍候...');
+            
             const startDate = document.getElementById('start-date').value;
             const endDate = document.getElementById('end-date').value;
-
-            if (!startDate || !endDate) {
-                showError('请选择分析日期范围');
-                return;
-            }
-
-            showLoading('正在加载仪表板数据...');
-
-            vscode.postMessage({
+            
+            vsCodeApi.postMessage({
                 command: 'getDashboardData',
                 params: {
                     start_date: startDate,
@@ -414,2696 +207,67 @@
             });
         }
 
-        // 显示加载状态 - 增强版
-        function showLoading(title, message = '请稍候，正在处理您的请求...', showProgress = false) {
-            const loadingOverlay = document.getElementById('loadingOverlay');
-            const loadingTitle = document.getElementById('loadingTitle');
-            const loadingMessage = document.getElementById('loadingMessage');
-            
-            // 更新加载信息
-            loadingTitle.textContent = title;
-            loadingMessage.textContent = message;
-            
-            // 显示加载遮罩
-            loadingOverlay.style.display = 'flex';
-            
-            // 添加淡入动画
-            loadingOverlay.style.opacity = '0';
-            setTimeout(() => {
-                loadingOverlay.style.opacity = '1';
-            }, 10);
-            
-            // 记录加载开始时间
-            loadingOverlay.dataset.startTime = Date.now();
-            
-            // 如果需要显示进度，添加进度条
-            if (showProgress) {
-                addProgressBar();
-            }
-            
-            console.log(`🔄 开始加载: ${title}`);
-        }
-
-        // 隐藏加载状态 - 增强版
-        function hideLoading() {
-            const loadingOverlay = document.getElementById('loadingOverlay');
-            
-            if (loadingOverlay.style.display === 'none') {
-                return; // 已经隐藏，避免重复操作
-            }
-            
-            // 计算加载时间
-            const startTime = parseInt(loadingOverlay.dataset.startTime || Date.now());
-            const loadTime = Date.now() - startTime;
-            
-            // 添加淡出动画
-            loadingOverlay.style.opacity = '0';
-            
-            setTimeout(() => {
-                loadingOverlay.style.display = 'none';
-                loadingOverlay.style.opacity = '1'; // 重置透明度
+        // 处理仪表板数据
+        function handleDashboardData(response) {
+            try {
+                console.log('收到仪表板响应:', response);
                 
-                // 移除进度条
-                removeProgressBar();
-                
-                console.log(`✅ 加载完成，耗时: ${loadTime}ms`);
-            }, 200);
-        }
-
-        // 添加进度条
-        function addProgressBar() {
-            const loadingContent = document.querySelector('.loading-content');
-            
-            // 检查是否已存在进度条
-            if (loadingContent.querySelector('.progress-bar')) {
-                return;
-            }
-            
-            const progressHtml = `
-                <div class="progress-bar" style="margin-top: 20px;">
-                    <div class="progress-fill" id="loadingProgress" style="width: 0%;"></div>
-                </div>
-                <div id="progressText" style="font-size: 12px; color: #666; margin-top: 8px;">正在初始化...</div>
-            `;
-            
-            loadingContent.insertAdjacentHTML('beforeend', progressHtml);
-            
-            // 模拟进度更新
-            simulateProgress();
-        }
-
-        // 移除进度条
-        function removeProgressBar() {
-            const progressBar = document.querySelector('.loading-content .progress-bar');
-            const progressText = document.getElementById('progressText');
-            
-            if (progressBar) progressBar.remove();
-            if (progressText) progressText.remove();
-        }
-
-        // 模拟进度更新
-        function simulateProgress() {
-            const progressFill = document.getElementById('loadingProgress');
-            const progressText = document.getElementById('progressText');
-            
-            if (!progressFill || !progressText) return;
-            
-            let progress = 0;
-            const steps = [
-                { progress: 20, text: '连接数据库...' },
-                { progress: 40, text: '查询数据...' },
-                { progress: 60, text: '处理数据...' },
-                { progress: 80, text: '生成图表...' },
-                { progress: 95, text: '完成处理...' }
-            ];
-            
-            let stepIndex = 0;
-            const interval = setInterval(() => {
-                if (stepIndex < steps.length) {
-                    const step = steps[stepIndex];
-                    progressFill.style.width = step.progress + '%';
-                    progressText.textContent = step.text;
-                    stepIndex++;
-                } else {
-                    clearInterval(interval);
-                }
-            }, 500);
-            
-            // 保存interval ID以便清理
-            progressFill.dataset.intervalId = interval;
-        }
-
-        // 更新加载状态
-        function updateLoadingStatus(message, progress = null) {
-            const loadingMessage = document.getElementById('loadingMessage');
-            const progressFill = document.getElementById('loadingProgress');
-            const progressText = document.getElementById('progressText');
-            
-            if (loadingMessage) {
-                loadingMessage.textContent = message;
-            }
-            
-            if (progress !== null && progressFill) {
-                progressFill.style.width = progress + '%';
-            }
-            
-            if (progressText) {
-                progressText.textContent = message;
-            }
-        }
-
-        // 显示错误消息
-        function showError(message) {
-            hideLoading();
-            const errorDiv = document.createElement('div');
-            errorDiv.className = 'error-message';
-            errorDiv.innerHTML = `❌ ${message}`;
-            document.querySelector('.container').insertBefore(errorDiv, document.querySelector('.dashboard-grid'));
-            setTimeout(() => errorDiv.remove(), 5000);
-        }
-
-        // 显示成功消息
-        function showSuccess(message) {
-            const successDiv = document.createElement('div');
-            successDiv.className = 'success-message';
-            successDiv.innerHTML = `✅ ${message}`;
-            document.querySelector('.container').insertBefore(successDiv, document.querySelector('.dashboard-grid'));
-            setTimeout(() => successDiv.remove(), 5000);
-        }
-
-        // 显示导出对话框
-        function showExportDialog() {
-            const exportDialog = document.getElementById('exportDialog');
-            exportDialog.style.display = 'flex';
-            
-            // 重置表单状态
-            document.getElementById('exportFormat').value = 'json';
-            document.getElementById('exportOverview').checked = true;
-            document.getElementById('exportSalesTrend').checked = true;
-            document.getElementById('exportCustomerAnalysis').checked = true;
-            document.getElementById('exportInventoryAnalysis').checked = true;
-            document.getElementById('exportComparisonAnalysis').checked = false;
-            document.getElementById('includeCharts').checked = true;
-            
-            // 隐藏状态区域
-            document.getElementById('exportStatus').style.display = 'none';
-            
-            console.log('📁 显示导出对话框');
-        }
-
-        // 关闭导出对话框
-        function closeExportDialog() {
-            const exportDialog = document.getElementById('exportDialog');
-            exportDialog.style.display = 'none';
-            console.log('❌ 关闭导出对话框');
-        }
-
-        // 开始导出
-        function startExport() {
-            // 获取导出参数
-            const exportFormat = document.getElementById('exportFormat').value;
-            const includeCharts = document.getElementById('includeCharts').checked;
-            
-            // 收集选中的导出部分
-            const exportSections = [];
-            if (document.getElementById('exportOverview').checked) {
-                exportSections.push('overview');
-            }
-            if (document.getElementById('exportSalesTrend').checked) {
-                exportSections.push('sales_trend');
-            }
-            if (document.getElementById('exportCustomerAnalysis').checked) {
-                exportSections.push('customer_analysis');
-            }
-            if (document.getElementById('exportInventoryAnalysis').checked) {
-                exportSections.push('inventory_analysis');
-            }
-            if (document.getElementById('exportComparisonAnalysis').checked) {
-                exportSections.push('comparison_analysis');
-            }
-            
-            // 验证选择
-            if (exportSections.length === 0) {
-                showError('请至少选择一个导出内容');
-                return;
-            }
-            
-            // 获取日期范围
-            const startDate = document.getElementById('start-date').value;
-            const endDate = document.getElementById('end-date').value;
-            
-            if (!startDate || !endDate) {
-                showError('请先选择分析日期范围');
-                return;
-            }
-            
-            // 显示导出状态
-            showExportStatus();
-            
-            // 构建导出参数
-            const exportParams = {
-                export_format: exportFormat,
-                export_sections: exportSections,
-                include_charts: includeCharts,
-                date_range: {
-                    start_date: startDate,
-                    end_date: endDate
-                }
-            };
-            
-            console.log('🚀 开始导出数据', exportParams);
-            
-            // 发送导出请求
-            vscode.postMessage({
-                command: 'exportDashboardData',
-                params: exportParams
-            });
-        }
-
-        // 显示导出状态
-        function showExportStatus() {
-            const exportStatus = document.getElementById('exportStatus');
-            const exportProgressBar = document.getElementById('exportProgressBar');
-            const exportProgressText = document.getElementById('exportProgressText');
-            
-            exportStatus.style.display = 'block';
-            exportProgressBar.style.width = '0%';
-            exportProgressText.textContent = '准备导出...';
-            
-            // 模拟导出进度
-            simulateExportProgress();
-        }
-
-        // 模拟导出进度
-        function simulateExportProgress() {
-            const exportProgressBar = document.getElementById('exportProgressBar');
-            const exportProgressText = document.getElementById('exportProgressText');
-            
-            if (!exportProgressBar || !exportProgressText) return;
-            
-            const steps = [
-                { progress: 10, text: '初始化导出...' },
-                { progress: 25, text: '收集概览数据...' },
-                { progress: 40, text: '收集销售趋势数据...' },
-                { progress: 55, text: '收集客户分析数据...' },
-                { progress: 70, text: '收集库存分析数据...' },
-                { progress: 85, text: '格式化导出数据...' },
-                { progress: 95, text: '准备下载...' }
-            ];
-            
-            let stepIndex = 0;
-            const interval = setInterval(() => {
-                if (stepIndex < steps.length) {
-                    const step = steps[stepIndex];
-                    exportProgressBar.style.width = step.progress + '%';
-                    exportProgressText.textContent = step.text;
-                    stepIndex++;
-                } else {
-                    clearInterval(interval);
-                }
-            }, 300);
-            
-            // 保存interval ID以便清理
-            exportProgressBar.dataset.intervalId = interval;
-        }
-
-        // 处理导出状态消息
-        function handleExportStatus(message) {
-            console.log('📊 导出状态更新', message);
-            
-            if (message.status === 'started') {
-                updateExportProgress(5, message.message || '开始导出...');
-            }
-        }
-
-        // 处理导出进度消息
-        function handleExportProgress(message) {
-            console.log('📈 导出进度更新', message);
-            
-            const progress = message.progress || 0;
-            const progressMessage = message.message || '正在处理...';
-            
-            updateExportProgress(progress, progressMessage);
-        }
-
-        // 更新导出进度
-        function updateExportProgress(progress, message) {
-            const exportProgressBar = document.getElementById('exportProgressBar');
-            const exportProgressText = document.getElementById('exportProgressText');
-            
-            if (exportProgressBar) {
-                exportProgressBar.style.width = progress + '%';
-            }
-            
-            if (exportProgressText) {
-                exportProgressText.textContent = message;
-            }
-        }
-
-        // 处理导出完成
-        function handleExportComplete(result) {
-            console.log('✅ 导出完成', result);
-            
-            if (result.success) {
-                // 更新进度为100%
-                updateExportProgress(100, '导出完成！');
-                
-                // 显示成功信息
-                const downloadInfo = result.download_info || {};
-                const filename = downloadInfo.filename || 'dashboard_export.json';
-                const sizeMB = downloadInfo.size_mb || 0;
-                
-                setTimeout(() => {
-                    closeExportDialog();
-                    showSuccess(`导出成功！文件: ${filename}，大小: ${sizeMB}MB`);
+                // 验证响应格式并提取数据
+                if (response && response.success && response.data) {
+                    dashboardData = response.data;
+                    console.log('提取的仪表板数据:', dashboardData);
                     
-                    // 触发文件下载
-                    downloadExportedData(result.export_data, filename, downloadInfo.content_type);
-                }, 1000);
-                
-            } else {
-                // 显示错误信息
-                const errorMessage = result.error?.message || '导出失败';
-                updateExportProgress(0, `导出失败: ${errorMessage}`);
-                
-                setTimeout(() => {
-                    closeExportDialog();
-                    showError(`导出失败: ${errorMessage}`);
-                }, 2000);
-            }
-        }
-
-        // 下载导出的数据
-        function downloadExportedData(data, filename, contentType) {
-            try {
-                let downloadData;
-                let downloadFilename = filename;
-                
-                // 根据数据类型处理下载
-                if (typeof data === 'object') {
-                    downloadData = JSON.stringify(data, null, 2);
-                    if (!downloadFilename.endsWith('.json')) {
-                        downloadFilename = downloadFilename.replace(/\.[^.]+$/, '.json');
-                    }
-                } else {
-                    downloadData = data;
-                }
-                
-                // 创建下载链接
-                const blob = new Blob([downloadData], { 
-                    type: contentType || 'application/json' 
-                });
-                const url = URL.createObjectURL(blob);
-                
-                // 创建临时下载链接
-                const downloadLink = document.createElement('a');
-                downloadLink.href = url;
-                downloadLink.download = downloadFilename;
-                downloadLink.style.display = 'none';
-                
-                // 触发下载
-                document.body.appendChild(downloadLink);
-                downloadLink.click();
-                document.body.removeChild(downloadLink);
-                
-                // 清理URL对象
-                setTimeout(() => URL.revokeObjectURL(url), 1000);
-                
-                console.log(`📥 文件下载触发: ${downloadFilename}`);
-                
-            } catch (error) {
-                console.error('下载文件失败:', error);
-                showError('文件下载失败: ' + error.message);
-            }
-        }
-
-        // 处理导出错误
-        function handleExportError(error) {
-            console.error('❌ 导出错误', error);
-            
-            updateExportProgress(0, '导出失败');
-            
-            setTimeout(() => {
-                closeExportDialog();
-                showError('导出失败: ' + (error.message || '未知错误'));
-            }, 1000);
-        },
-                params: exportParams
-            });
-        }
-
-        // 显示导出状态
-        function showExportStatus() {
-            const exportStatus = document.getElementById('exportStatus');
-            const exportProgressBar = document.getElementById('exportProgressBar');
-            const exportProgressText = document.getElementById('exportProgressText');
-            
-            exportStatus.style.display = 'block';
-            exportProgressBar.style.width = '0%';
-            exportProgressText.textContent = '准备导出...';
-            
-            // 模拟导出进度
-            simulateExportProgress();
-        }
-
-        // 模拟导出进度
-        function simulateExportProgress() {
-            const exportProgressBar = document.getElementById('exportProgressBar');
-            const exportProgressText = document.getElementById('exportProgressText');
-            
-            if (!exportProgressBar || !exportProgressText) return;
-            
-            const steps = [
-                { progress: 10, text: '初始化导出...' },
-                { progress: 25, text: '收集概览数据...' },
-                { progress: 40, text: '收集销售趋势数据...' },
-                { progress: 55, text: '收集客户分析数据...' },
-                { progress: 70, text: '收集库存分析数据...' },
-                { progress: 85, text: '格式化导出数据...' },
-                { progress: 95, text: '准备下载...' }
-            ];
-            
-            let stepIndex = 0;
-            const interval = setInterval(() => {
-                if (stepIndex < steps.length) {
-                    const step = steps[stepIndex];
-                    exportProgressBar.style.width = step.progress + '%';
-                    exportProgressText.textContent = step.text;
-                    stepIndex++;
-                } else {
-                    clearInterval(interval);
-                }
-            }, 300);
-            
-            // 保存interval ID以便清理
-            exportProgressBar.dataset.intervalId = interval;
-        }
-
-        // 更新导出进度
-        function updateExportProgress(progress, message) {
-            const exportProgressBar = document.getElementById('exportProgressBar');
-            const exportProgressText = document.getElementById('exportProgressText');
-            
-            if (exportProgressBar) {
-                exportProgressBar.style.width = progress + '%';
-            }
-            
-            if (exportProgressText) {
-                exportProgressText.textContent = message;
-            }
-        }
-
-        // 处理导出完成
-        function handleExportComplete(result) {
-            console.log('✅ 导出完成', result);
-            
-            if (result.success) {
-                // 更新进度为100%
-                updateExportProgress(100, '导出完成！');
-                
-                // 显示成功信息
-                const downloadInfo = result.download_info || {};
-                const filename = downloadInfo.filename || 'dashboard_export.json';
-                const sizeMB = downloadInfo.size_mb || 0;
-                
-                setTimeout(() => {
-                    closeExportDialog();
-                    showSuccess(`导出成功！文件: ${filename}，大小: ${sizeMB}MB`);
+                    // 使用提取的数据生成指标卡片
+                    generateMetricCards(dashboardData);
                     
-                    // 触发文件下载
-                    downloadExportedData(result.export_data, filename, downloadInfo.content_type);
-                }, 1000);
-                
-            } else {
-                // 显示错误信息
-                const errorMessage = result.error?.message || '导出失败';
-                updateExportProgress(0, `导出失败: ${errorMessage}`);
-                
-                setTimeout(() => {
-                    closeExportDialog();
-                    showError(`导出失败: ${errorMessage}`);
-                }, 2000);
-            }
-        }
-
-        // 下载导出的数据
-        function downloadExportedData(data, filename, contentType) {
-            try {
-                let downloadData;
-                let downloadFilename = filename;
-                
-                // 根据数据类型处理下载
-                if (typeof data === 'object') {
-                    downloadData = JSON.stringify(data, null, 2);
-                    if (!downloadFilename.endsWith('.json')) {
-                        downloadFilename = downloadFilename.replace(/\.[^.]+$/, '.json');
-                    }
+                    // 生成模拟的销售趋势数据
+                    const mockSalesTrend = generateMockSalesTrend(dashboardData);
+                    createSalesTrendChart(mockSalesTrend);
+                    
+                    // 生成模拟的客户价值数据
+                    const mockCustomers = generateMockCustomerData(dashboardData);
+                    createCustomerValueChart(mockCustomers);
+                    
+                    hideLoading();
+                    console.log('仪表板数据处理完成');
                 } else {
-                    downloadData = data;
-                }
-                
-                // 创建下载链接
-                const blob = new Blob([downloadData], { 
-                    type: contentType || 'application/json' 
-                });
-                const url = URL.createObjectURL(blob);
-                
-                // 创建临时下载链接
-                const downloadLink = document.createElement('a');
-                downloadLink.href = url;
-                downloadLink.download = downloadFilename;
-                downloadLink.style.display = 'none';
-                
-                // 触发下载
-                document.body.appendChild(downloadLink);
-                downloadLink.click();
-                document.body.removeChild(downloadLink);
-                
-                // 清理URL对象
-                setTimeout(() => URL.revokeObjectURL(url), 1000);
-                
-                console.log(`📥 文件下载触发: ${downloadFilename}`);
-                
-            } catch (error) {
-                console.error('下载文件失败:', error);
-                showError('文件下载失败: ' + error.message);
-            }
-        }
-
-        // 处理导出错误
-        function handleExportError(error) {
-            console.error('❌ 导出错误', error);
-            
-            updateExportProgress(0, '导出失败');
-            
-            setTimeout(() => {
-                closeExportDialog();
-                showError('导出失败: ' + (error.message || '未知错误'));
-            }, 1000);
-        }
-
-        // 生成关键指标卡片
-        function generateMetricCards(data) {
-            const metricsGrid = document.getElementById('metrics-grid');
-            const overview = data.overview || {};
-
-            const metrics = [
-                {
-                    title: '总销售额',
-                    value: formatCurrency(overview.total_sales || 0),
-                    label: '本期销售总额',
-                    icon: '💰'
-                },
-                {
-                    title: '总订单数',
-                    value: (overview.total_sales_count || 0).toLocaleString(),
-                    label: '本期订单总数',
-                    icon: '📋'
-                },
-                {
-                    title: '活跃客户',
-                    value: (overview.active_customers || 0).toLocaleString(),
-                    label: `客户活跃度 ${((overview.customer_activity_rate || 0)).toFixed(1)}%`,
-                    icon: '👥'
-                },
-                {
-                    title: '库存价值',
-                    value: formatCurrency(overview.total_inventory_value || 0),
-                    label: `低库存预警 ${overview.low_stock_items || 0} 项`,
-                    icon: '📦'
-                },
-                {
-                    title: '平均订单价值',
-                    value: formatCurrency(overview.avg_order_value || 0),
-                    label: '每单平均金额',
-                    icon: '💳'
-                },
-                {
-                    title: '毛利润',
-                    value: formatCurrency(overview.gross_margin || 0),
-                    label: '销售额 - 采购额',
-                    icon: '📈'
-                }
-            ];
-
-            metricsGrid.innerHTML = metrics.map(metric => `
-                <div class="metric-card">
-                    <h3>${metric.icon} ${metric.title}</h3>
-                    <div class="metric-value">${metric.value}</div>
-                    <div class="metric-label">${metric.label}</div>
-                </div>
-            `).join('');
-        }
-
-        // 显示销售趋势
-        function showSalesTrend(dimension) {
-            // 更新标签状态
-            document.querySelectorAll('.analysis-tab').forEach(tab => {
-                tab.classList.remove('active');
-            });
-            event.target.classList.add('active');
-
-            showLoading('正在加载销售趋势数据...');
-
-            const startDate = document.getElementById('start-date').value;
-            const endDate = document.getElementById('end-date').value;
-
-            vscode.postMessage({
-                command: 'getSalesTrend',
-                params: {
-                    dimension: dimension,
-                    start_date: startDate,
-                    end_date: endDate
-                }
-            });
-        }
-
-        // 创建销售趋势图表 - 改进版
-        function createSalesTrendChart(data, dimension) {
-            const ctx = document.getElementById('salesTrendChart').getContext('2d');
-            
-            if (salesTrendChart) {
-                salesTrendChart.destroy();
-            }
-
-            // 数据验证和处理
-            if (!data || !Array.isArray(data) || data.length === 0) {
-                const chartContainer = ctx.canvas.parentElement;
-                chartContainer.innerHTML = '<div class="chart-placeholder">📊 暂无销售趋势数据</div>';
-                return;
-            }
-
-            let labels, values, orderCounts = [];
-            
-            // 根据维度处理数据
-            if (dimension === 'month' || dimension === 'quarter') {
-                // 按时间排序
-                const sortedData = data.sort((a, b) => {
-                    const dateA = new Date(a.month || a.quarter || a._id);
-                    const dateB = new Date(b.month || b.quarter || b._id);
-                    return dateA - dateB;
-                });
-                
-                labels = sortedData.map(item => {
-                    const dateStr = item.month || item.quarter || item._id;
-                    // 格式化日期显示
-                    if (dimension === 'month') {
-                        return new Date(dateStr + '-01').toLocaleDateString('zh-CN', { year: 'numeric', month: 'short' });
-                    }
-                    return dateStr;
-                });
-                values = sortedData.map(item => item.total_sales || 0);
-                orderCounts = sortedData.map(item => item.sales_count || item.order_count || 0);
-            } else if (dimension === 'product') {
-                // 按销售额排序，取前15个
-                const sortedData = data
-                    .sort((a, b) => (b.total_sales || 0) - (a.total_sales || 0))
-                    .slice(0, 15);
-                
-                labels = sortedData.map(item => {
-                    const name = item._id || item.product_name || '未知产品';
-                    // 截断过长的产品名称
-                    return name.length > 12 ? name.substring(0, 12) + '...' : name;
-                });
-                values = sortedData.map(item => item.total_sales || 0);
-                orderCounts = sortedData.map(item => item.sales_count || item.order_count || 0);
-            }
-
-            // 创建渐变色
-            const gradient = ctx.createLinearGradient(0, 0, 0, 300);
-            if (dimension === 'product') {
-                gradient.addColorStop(0, 'rgba(0, 123, 255, 0.8)');
-                gradient.addColorStop(1, 'rgba(0, 123, 255, 0.2)');
-            } else {
-                gradient.addColorStop(0, 'rgba(0, 123, 255, 0.3)');
-                gradient.addColorStop(1, 'rgba(0, 123, 255, 0.05)');
-            }
-
-            const chartConfig = {
-                type: dimension === 'product' ? 'bar' : 'line',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: '销售金额',
-                        data: values,
-                        borderColor: '#007bff',
-                        backgroundColor: dimension === 'product' ? gradient : gradient,
-                        borderWidth: dimension === 'product' ? 1 : 3,
-                        fill: true,
-                        tension: dimension === 'product' ? 0 : 0.4,
-                        pointBackgroundColor: '#007bff',
-                        pointBorderColor: '#ffffff',
-                        pointBorderWidth: 2,
-                        pointRadius: dimension === 'product' ? 0 : 5,
-                        pointHoverRadius: dimension === 'product' ? 0 : 8
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: {
-                        intersect: false,
-                        mode: 'index'
-                    },
-                    plugins: {
-                        legend: {
-                            display: false
-                        },
-                        tooltip: {
-                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                            titleColor: '#ffffff',
-                            bodyColor: '#ffffff',
-                            borderColor: '#007bff',
-                            borderWidth: 1,
-                            cornerRadius: 8,
-                            displayColors: false,
-                            callbacks: {
-                                title: function(context) {
-                                    return context[0].label;
-                                },
-                                label: function(context) {
-                                    const value = context.parsed.y;
-                                    const orderCount = orderCounts[context.dataIndex];
-                                    let label = `销售额: ¥${value.toLocaleString()}`;
-                                    if (orderCount > 0) {
-                                        label += `\n订单数: ${orderCount}`;
-                                        const avgOrder = value / orderCount;
-                                        label += `\n平均订单: ¥${avgOrder.toLocaleString()}`;
-                                    }
-                                    return label;
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            grid: {
-                                color: 'rgba(0, 0, 0, 0.1)',
-                                drawBorder: false
-                            },
-                            ticks: {
-                                color: '#666',
-                                font: {
-                                    size: 12
-                                },
-                                callback: function(value) {
-                                    if (value >= 1000000) {
-                                        return '¥' + (value / 1000000).toFixed(1) + 'M';
-                                    } else if (value >= 1000) {
-                                        return '¥' + (value / 1000).toFixed(1) + 'K';
-                                    }
-                                    return '¥' + value.toLocaleString();
-                                }
-                            }
-                        },
-                        x: {
-                            grid: {
-                                display: dimension !== 'product',
-                                color: 'rgba(0, 0, 0, 0.1)',
-                                drawBorder: false
-                            },
-                            ticks: {
-                                color: '#666',
-                                font: {
-                                    size: 11
-                                },
-                                maxRotation: dimension === 'product' ? 45 : 0,
-                                maxTicksLimit: dimension === 'product' ? 15 : 12
-                            }
-                        }
-                    },
-                    animation: {
-                        duration: 1000,
-                        easing: 'easeInOutQuart'
-                    }
-                }
-            };
-
-            salesTrendChart = new Chart(ctx, chartConfig);
-        }
-
-        // 创建客户价值图表 - 改进版
-        function createCustomerValueChart(data) {
-            const ctx = document.getElementById('customerValueChart').getContext('2d');
-            
-            if (customerValueChart) {
-                customerValueChart.destroy();
-            }
-
-            // 数据验证
-            if (!data || !Array.isArray(data) || data.length === 0) {
-                const chartContainer = ctx.canvas.parentElement;
-                chartContainer.innerHTML = '<div class="chart-placeholder">👥 暂无客户价值数据</div>';
-                return;
-            }
-
-            // 统计客户分类和价值
-            const segmentStats = {};
-            let totalValue = 0;
-            
-            data.forEach(customer => {
-                const segment = customer.customer_segment || '未分类';
-                const value = customer.monetary || customer.customer_value || 0;
-                
-                if (!segmentStats[segment]) {
-                    segmentStats[segment] = { count: 0, totalValue: 0 };
-                }
-                segmentStats[segment].count++;
-                segmentStats[segment].totalValue += value;
-                totalValue += value;
-            });
-
-            // 按客户数量排序
-            const sortedSegments = Object.entries(segmentStats)
-                .sort(([,a], [,b]) => b.count - a.count);
-
-            const labels = sortedSegments.map(([segment]) => segment);
-            const values = sortedSegments.map(([,stats]) => stats.count);
-            const valueAmounts = sortedSegments.map(([,stats]) => stats.totalValue);
-            
-            const colors = {
-                '冠军客户': '#28a745',
-                '忠诚客户': '#007bff',
-                '潜力客户': '#ffc107',
-                '新客户': '#17a2b8',
-                '风险客户': '#fd7e14',
-                '流失客户': '#dc3545',
-                '未分类': '#6c757d'
-            };
-
-            // 创建渐变色
-            const backgroundColors = labels.map(label => {
-                const baseColor = colors[label] || '#6c757d';
-                const gradient = ctx.createRadialGradient(150, 150, 0, 150, 150, 150);
-                gradient.addColorStop(0, baseColor);
-                gradient.addColorStop(1, baseColor + '80');
-                return baseColor;
-            });
-
-            customerValueChart = new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        data: values,
-                        backgroundColor: backgroundColors,
-                        borderWidth: 3,
-                        borderColor: '#ffffff',
-                        hoverBorderWidth: 4,
-                        hoverBorderColor: '#ffffff'
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    cutout: '60%',
-                    plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: {
-                                padding: 20,
-                                usePointStyle: true,
-                                font: {
-                                    size: 12
-                                },
-                                generateLabels: function(chart) {
-                                    const data = chart.data;
-                                    return data.labels.map((label, index) => {
-                                        const count = data.datasets[0].data[index];
-                                        const value = valueAmounts[index];
-                                        const percentage = ((count / data.datasets[0].data.reduce((a, b) => a + b, 0)) * 100).toFixed(1);
-                                        
-                                        return {
-                                            text: `${label} (${count}人, ${percentage}%)`,
-                                            fillStyle: data.datasets[0].backgroundColor[index],
-                                            strokeStyle: data.datasets[0].borderColor,
-                                            lineWidth: data.datasets[0].borderWidth,
-                                            pointStyle: 'circle'
-                                        };
-                                    });
-                                }
-                            }
-                        },
-                        tooltip: {
-                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                            titleColor: '#ffffff',
-                            bodyColor: '#ffffff',
-                            borderColor: '#007bff',
-                            borderWidth: 1,
-                            cornerRadius: 8,
-                            callbacks: {
-                                title: function(context) {
-                                    return context[0].label;
-                                },
-                                label: function(context) {
-                                    const count = context.parsed;
-                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                    const percentage = ((count / total) * 100).toFixed(1);
-                                    const value = valueAmounts[context.dataIndex];
-                                    
-                                    return [
-                                        `客户数量: ${count}人`,
-                                        `占比: ${percentage}%`,
-                                        `总价值: ¥${value.toLocaleString()}`,
-                                        `平均价值: ¥${(value / count).toLocaleString()}`
-                                    ];
-                                }
-                            }
-                        }
-                    },
-                    animation: {
-                        animateRotate: true,
-                        animateScale: true,
-                        duration: 1000,
-                        easing: 'easeInOutQuart'
-                    },
-                    interaction: {
-                        intersect: false
-                    }
-                }
-            });
-        }
-
-        // 显示分析标签页
-        function showAnalysisTab(tabName) {
-            // 隐藏所有标签页内容
-            document.querySelectorAll('.tab-content').forEach(content => {
-                content.classList.remove('active');
-            });
-
-            // 移除所有标签的active类
-            document.querySelectorAll('.analysis-tab').forEach(tab => {
-                tab.classList.remove('active');
-            });
-
-            // 显示选中的标签页内容
-            const targetTab = document.getElementById(tabName + '-analysis') || 
-                             document.getElementById(tabName + '-detailed-analysis');
-            if (targetTab) {
-                targetTab.classList.add('active');
-            }
-
-            // 添加active类到选中的标签
-            event.target.classList.add('active');
-
-            // 根据标签页加载相应数据
-            switch(tabName) {
-                case 'inventory':
-                    loadInventoryAnalysis();
-                    break;
-                case 'customer':
-                    loadCustomerAnalysis();
-                    break;
-                case 'purchase':
-                    loadPurchaseAnalysis();
-                    break;
-            }
-        }
-
-        // 加载库存分析
-        function loadInventoryAnalysis() {
-            const startDate = document.getElementById('start-date').value;
-            const endDate = document.getElementById('end-date').value;
-
-            vscode.postMessage({
-                command: 'getInventoryAnalysis',
-                params: {
-                    start_date: startDate,
-                    end_date: endDate
-                }
-            });
-        }
-
-        // 显示库存分析结果
-        function displayInventoryAnalysis(data) {
-            const summaryDiv = document.getElementById('inventory-summary');
-            const deadStockDiv = document.getElementById('dead-stock-table');
-
-            // 显示库存概要
-            summaryDiv.innerHTML = `
-                <div class="dashboard-grid" style="margin-bottom: 20px;">
-                    <div class="metric-card">
-                        <h3>📊 总体周转率</h3>
-                        <div class="metric-value">${data.overall_turnover_rate || 0}</div>
-                        <div class="metric-label">次/年</div>
-                    </div>
-                    <div class="metric-card">
-                        <h3>⚡ 快速周转</h3>
-                        <div class="metric-value">${data.fast_moving_items || 0}</div>
-                        <div class="metric-label">种产品</div>
-                    </div>
-                    <div class="metric-card">
-                        <h3>⚠️ 呆滞库存</h3>
-                        <div class="metric-value">${data.dead_stock_count || 0}</div>
-                        <div class="metric-label">种产品</div>
-                    </div>
-                </div>
-            `;
-
-            // 显示呆滞库存表格
-            if (data.dead_stock_items && data.dead_stock_items.length > 0) {
-                let tableHtml = `
-                    <h4>🚨 呆滞库存详情</h4>
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>产品名称</th>
-                                <th>库存数量</th>
-                                <th>库存价值</th>
-                                <th>单价</th>
-                                <th>状态</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                `;
-
-                data.dead_stock_items.forEach(item => {
-                    tableHtml += `
-                        <tr>
-                            <td>${item.product_name || '未知'}</td>
-                            <td>${item.current_stock || 0}</td>
-                            <td>${formatCurrency(item.inventory_value || 0)}</td>
-                            <td>${formatCurrency(item.unit_price || 0)}</td>
-                            <td><span class="status-low">${item.stock_status || '呆滞'}</span></td>
-                        </tr>
-                    `;
-                });
-
-                tableHtml += '</tbody></table>';
-                deadStockDiv.innerHTML = tableHtml;
-            } else {
-                deadStockDiv.innerHTML = '<div class="info-message">✅ 暂无呆滞库存</div>';
-            }
-
-            // 创建库存周转图表
-            createInventoryChart(data.turnover_analysis || []);
-        }
-
-        // 创建库存图表 - 改进版
-        function createInventoryChart(data) {
-            const ctx = document.getElementById('inventoryChart').getContext('2d');
-            
-            if (inventoryChart) {
-                inventoryChart.destroy();
-            }
-
-            // 数据验证
-            if (!data || !Array.isArray(data) || data.length === 0) {
-                const chartContainer = ctx.canvas.parentElement;
-                chartContainer.innerHTML = '<div class="chart-placeholder">📦 暂无库存周转数据</div>';
-                return;
-            }
-
-            // 按周转率排序并分类
-            const sortedData = data
-                .filter(item => item.turnover_rate !== undefined && item.turnover_rate !== null)
-                .sort((a, b) => (b.turnover_rate || 0) - (a.turnover_rate || 0))
-                .slice(0, 20);
-
-            const labels = sortedData.map(item => {
-                const name = item.product_name || item._id || '未知产品';
-                return name.length > 15 ? name.substring(0, 15) + '...' : name;
-            });
-            
-            const turnoverRates = sortedData.map(item => item.turnover_rate || 0);
-            const stockValues = sortedData.map(item => item.stock_value || item.inventory_value || 0);
-            const stockQuantities = sortedData.map(item => item.current_stock || item.stock_quantity || 0);
-
-            // 智能颜色编码
-            const backgroundColors = turnoverRates.map(rate => {
-                if (rate >= 6) return '#28a745';      // 极快周转 - 绿色
-                if (rate >= 4) return '#20c997';      // 快速周转 - 青绿色
-                if (rate >= 2) return '#007bff';      // 正常周转 - 蓝色
-                if (rate >= 1) return '#ffc107';      // 慢速周转 - 黄色
-                if (rate >= 0.5) return '#fd7e14';    // 很慢周转 - 橙色
-                return '#dc3545';                     // 呆滞库存 - 红色
-            });
-
-            // 创建渐变效果
-            const gradientColors = backgroundColors.map(color => {
-                const gradient = ctx.createLinearGradient(0, 0, 0, 300);
-                gradient.addColorStop(0, color);
-                gradient.addColorStop(1, color + '60');
-                return gradient;
-            });
-
-            inventoryChart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: '周转率',
-                        data: turnoverRates,
-                        backgroundColor: gradientColors,
-                        borderColor: backgroundColors,
-                        borderWidth: 2,
-                        borderRadius: 4,
-                        borderSkipped: false
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: {
-                        intersect: false,
-                        mode: 'index'
-                    },
-                    plugins: {
-                        legend: {
-                            display: false
-                        },
-                        tooltip: {
-                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                            titleColor: '#ffffff',
-                            bodyColor: '#ffffff',
-                            borderColor: '#007bff',
-                            borderWidth: 1,
-                            cornerRadius: 8,
-                            displayColors: true,
-                            callbacks: {
-                                title: function(context) {
-                                    const fullName = sortedData[context[0].dataIndex].product_name || 
-                                                   sortedData[context[0].dataIndex]._id || '未知产品';
-                                    return fullName;
-                                },
-                                label: function(context) {
-                                    const index = context.dataIndex;
-                                    const rate = turnoverRates[index];
-                                    const value = stockValues[index];
-                                    const quantity = stockQuantities[index];
-                                    
-                                    let status = '';
-                                    if (rate >= 6) status = '极快周转';
-                                    else if (rate >= 4) status = '快速周转';
-                                    else if (rate >= 2) status = '正常周转';
-                                    else if (rate >= 1) status = '慢速周转';
-                                    else if (rate >= 0.5) status = '很慢周转';
-                                    else status = '呆滞库存';
-                                    
-                                    return [
-                                        `周转率: ${rate.toFixed(2)}次/年`,
-                                        `状态: ${status}`,
-                                        `库存价值: ¥${value.toLocaleString()}`,
-                                        `库存数量: ${quantity.toLocaleString()}`
-                                    ];
-                                },
-                                labelColor: function(context) {
-                                    return {
-                                        borderColor: backgroundColors[context.dataIndex],
-                                        backgroundColor: backgroundColors[context.dataIndex]
-                                    };
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            grid: {
-                                color: 'rgba(0, 0, 0, 0.1)',
-                                drawBorder: false
-                            },
-                            ticks: {
-                                color: '#666',
-                                font: {
-                                    size: 12
-                                },
-                                callback: function(value) {
-                                    return value.toFixed(1) + '次';
-                                }
-                            },
-                            title: {
-                                display: true,
-                                text: '年周转率',
-                                color: '#495057',
-                                font: {
-                                    size: 14,
-                                    weight: 'bold'
-                                }
-                            }
-                        },
-                        x: {
-                            grid: {
-                                display: false
-                            },
-                            ticks: {
-                                color: '#666',
-                                font: {
-                                    size: 10
-                                },
-                                maxRotation: 45,
-                                maxTicksLimit: 20
-                            }
-                        }
-                    },
-                    animation: {
-                        duration: 1200,
-                        easing: 'easeInOutQuart'
-                    }
-                }
-            });
-
-            // 添加图例说明
-            const chartContainer = ctx.canvas.parentElement;
-            let legendHtml = `
-                <div style="margin-top: 15px; display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; font-size: 12px;">
-                    <span style="display: flex; align-items: center; gap: 5px;">
-                        <div style="width: 12px; height: 12px; background: #28a745; border-radius: 2px;"></div>
-                        极快周转 (≥6次)
-                    </span>
-                    <span style="display: flex; align-items: center; gap: 5px;">
-                        <div style="width: 12px; height: 12px; background: #20c997; border-radius: 2px;"></div>
-                        快速周转 (4-6次)
-                    </span>
-                    <span style="display: flex; align-items: center; gap: 5px;">
-                        <div style="width: 12px; height: 12px; background: #007bff; border-radius: 2px;"></div>
-                        正常周转 (2-4次)
-                    </span>
-                    <span style="display: flex; align-items: center; gap: 5px;">
-                        <div style="width: 12px; height: 12px; background: #ffc107; border-radius: 2px;"></div>
-                        慢速周转 (1-2次)
-                    </span>
-                    <span style="display: flex; align-items: center; gap: 5px;">
-                        <div style="width: 12px; height: 12px; background: #fd7e14; border-radius: 2px;"></div>
-                        很慢周转 (0.5-1次)
-                    </span>
-                    <span style="display: flex; align-items: center; gap: 5px;">
-                        <div style="width: 12px; height: 12px; background: #dc3545; border-radius: 2px;"></div>
-                        呆滞库存 (<0.5次)
-                    </span>
-                </div>
-            `;
-            
-            // 检查是否已存在图例，避免重复添加
-            const existingLegend = chartContainer.querySelector('.inventory-legend');
-            if (existingLegend) {
-                existingLegend.remove();
-            }
-            
-            const legendDiv = document.createElement('div');
-            legendDiv.className = 'inventory-legend';
-            legendDiv.innerHTML = legendHtml;
-            chartContainer.appendChild(legendDiv);
-        }
-
-        // 加载客户分析
-        function loadCustomerAnalysis() {
-            vscode.postMessage({
-                command: 'getCustomerAnalysis',
-                params: {}
-            });
-        }
-
-        // 显示客户分析结果
-        function displayCustomerAnalysis(data) {
-            const summaryDiv = document.getElementById('customer-summary');
-            const tableDiv = document.getElementById('customer-table');
-
-            // 统计客户分类
-            const segmentStats = {};
-            data.forEach(customer => {
-                const segment = customer.customer_segment || '未分类';
-                if (!segmentStats[segment]) {
-                    segmentStats[segment] = { count: 0, totalValue: 0 };
-                }
-                segmentStats[segment].count++;
-                segmentStats[segment].totalValue += customer.monetary || 0;
-            });
-
-            // 显示客户分类汇总
-            let summaryHtml = '<div class="dashboard-grid">';
-            Object.entries(segmentStats).forEach(([segment, stats]) => {
-                summaryHtml += `
-                    <div class="metric-card">
-                        <h3>${segment}</h3>
-                        <div class="metric-value">${stats.count}</div>
-                        <div class="metric-label">${formatCurrency(stats.totalValue)}</div>
-                    </div>
-                `;
-            });
-            summaryHtml += '</div>';
-            summaryDiv.innerHTML = summaryHtml;
-
-            // 显示详细客户表格
-            let tableHtml = `
-                <h4>🏆 客户价值排行榜（Top 20）</h4>
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>排名</th>
-                            <th>客户名称</th>
-                            <th>RFM评分</th>
-                            <th>客户分类</th>
-                            <th>购买金额</th>
-                            <th>购买频次</th>
-                            <th>最近购买</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
-
-            data.slice(0, 20).forEach((customer, index) => {
-                const segmentClass = getSegmentClass(customer.customer_segment);
-                tableHtml += `
-                    <tr>
-                        <td>${index + 1}</td>
-                        <td>${customer.customer_name || '未知'}</td>
-                        <td><strong>${customer.rfm_score || 0}</strong></td>
-                        <td><span class="${segmentClass}">${customer.customer_segment || '未分类'}</span></td>
-                        <td>${formatCurrency(customer.monetary || 0)}</td>
-                        <td>${customer.frequency || 0}次</td>
-                        <td>${customer.recency || 0}天前</td>
-                    </tr>
-                `;
-            });
-
-            tableHtml += '</tbody></table>';
-            tableDiv.innerHTML = tableHtml;
-        }
-
-        // 获取客户分类样式类
-        function getSegmentClass(segment) {
-            const classMap = {
-                '冠军客户': 'status-high',
-                '忠诚客户': 'status-high',
-                '潜力客户': 'status-medium',
-                '新客户': 'status-medium',
-                '风险客户': 'status-low',
-                '流失客户': 'status-low'
-            };
-            return classMap[segment] || '';
-        }
-
-        // 显示分析标签页
-        function showAnalysisTab(tabName) {
-            // 隐藏所有标签页内容
-            document.querySelectorAll('.tab-content').forEach(content => {
-                content.classList.remove('active');
-            });
-
-            // 移除所有标签的active类
-            document.querySelectorAll('.analysis-tab').forEach(tab => {
-                tab.classList.remove('active');
-            });
-
-            // 显示选中的标签页内容
-            const targetTab = document.getElementById(tabName + '-analysis') || 
-                             document.getElementById(tabName + '-detailed-analysis');
-            if (targetTab) {
-                targetTab.classList.add('active');
-            }
-
-            // 添加active类到选中的标签
-            if (event && event.target) {
-                event.target.classList.add('active');
-            }
-
-            // 根据标签页加载相应数据
-            switch(tabName) {
-                case 'inventory':
-                    loadInventoryAnalysis();
-                    break;
-                case 'customer':
-                    loadCustomerAnalysis();
-                    break;
-                case 'purchase':
-                    loadPurchaseAnalysis();
-                    break;
-            }
-        }
-
-        // 加载采购分析
-        function loadPurchaseAnalysis() {
-            showPurchaseTrend('supplier');
-        }
-
-        // 显示采购趋势
-        function showPurchaseTrend(dimension) {
-            const startDate = document.getElementById('start-date').value;
-            const endDate = document.getElementById('end-date').value;
-
-            vscode.postMessage({
-                command: 'getPurchaseTrend',
-                params: {
-                    dimension: dimension,
-                    start_date: startDate,
-                    end_date: endDate
-                }
-            });
-        }
-
-        // 创建采购趋势图表 - 改进版
-        function createPurchaseTrendChart(data, dimension) {
-            const ctx = document.getElementById('purchaseTrendChart').getContext('2d');
-            
-            if (purchaseTrendChart) {
-                purchaseTrendChart.destroy();
-            }
-
-            // 数据验证
-            if (!data || !Array.isArray(data) || data.length === 0) {
-                const chartContainer = ctx.canvas.parentElement;
-                chartContainer.innerHTML = '<div class="chart-placeholder">🛒 暂无采购趋势数据</div>';
-                return;
-            }
-
-            let labels, values, purchaseCounts = [];
-            
-            if (dimension === 'supplier') {
-                // 按采购额排序，取前12个供应商
-                const sortedData = data
-                    .sort((a, b) => (b.total_purchases || 0) - (a.total_purchases || 0))
-                    .slice(0, 12);
-                
-                labels = sortedData.map(item => {
-                    const name = item.supplier_name || item._id || '未知供应商';
-                    return name.length > 10 ? name.substring(0, 10) + '...' : name;
-                });
-                values = sortedData.map(item => item.total_purchases || 0);
-                purchaseCounts = sortedData.map(item => item.purchase_count || 0);
-            } else if (dimension === 'material') {
-                // 按采购额排序，取前12个物料
-                const sortedData = data
-                    .sort((a, b) => (b.total_purchases || 0) - (a.total_purchases || 0))
-                    .slice(0, 12);
-                
-                labels = sortedData.map(item => {
-                    const name = item.material_name || item._id || '未知物料';
-                    return name.length > 12 ? name.substring(0, 12) + '...' : name;
-                });
-                values = sortedData.map(item => item.total_purchases || 0);
-                purchaseCounts = sortedData.map(item => item.purchase_count || 0);
-            } else if (dimension === 'month') {
-                // 按时间排序
-                const sortedData = data.sort((a, b) => {
-                    const dateA = new Date(a.month || a._id);
-                    const dateB = new Date(b.month || b._id);
-                    return dateA - dateB;
-                });
-                
-                labels = sortedData.map(item => {
-                    const dateStr = item.month || item._id;
-                    return new Date(dateStr + '-01').toLocaleDateString('zh-CN', { year: 'numeric', month: 'short' });
-                });
-                values = sortedData.map(item => item.total_purchases || 0);
-                purchaseCounts = sortedData.map(item => item.purchase_count || 0);
-            }
-
-            // 创建渐变色
-            const gradient = ctx.createLinearGradient(0, 0, 0, 300);
-            if (dimension === 'month') {
-                gradient.addColorStop(0, 'rgba(40, 167, 69, 0.3)');
-                gradient.addColorStop(1, 'rgba(40, 167, 69, 0.05)');
-            } else {
-                gradient.addColorStop(0, 'rgba(40, 167, 69, 0.8)');
-                gradient.addColorStop(1, 'rgba(40, 167, 69, 0.2)');
-            }
-
-            purchaseTrendChart = new Chart(ctx, {
-                type: dimension === 'month' ? 'line' : 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: '采购金额',
-                        data: values,
-                        borderColor: '#28a745',
-                        backgroundColor: gradient,
-                        borderWidth: dimension === 'month' ? 3 : 1,
-                        fill: true,
-                        tension: dimension === 'month' ? 0.4 : 0,
-                        pointBackgroundColor: '#28a745',
-                        pointBorderColor: '#ffffff',
-                        pointBorderWidth: 2,
-                        pointRadius: dimension === 'month' ? 5 : 0,
-                        pointHoverRadius: dimension === 'month' ? 8 : 0
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: {
-                        intersect: false,
-                        mode: 'index'
-                    },
-                    plugins: {
-                        legend: {
-                            display: false
-                        },
-                        tooltip: {
-                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                            titleColor: '#ffffff',
-                            bodyColor: '#ffffff',
-                            borderColor: '#28a745',
-                            borderWidth: 1,
-                            cornerRadius: 8,
-                            displayColors: false,
-                            callbacks: {
-                                title: function(context) {
-                                    return context[0].label;
-                                },
-                                label: function(context) {
-                                    const value = context.parsed.y;
-                                    const purchaseCount = purchaseCounts[context.dataIndex];
-                                    let label = `采购金额: ¥${value.toLocaleString()}`;
-                                    if (purchaseCount > 0) {
-                                        label += `\n采购次数: ${purchaseCount}`;
-                                        const avgPurchase = value / purchaseCount;
-                                        label += `\n平均采购: ¥${avgPurchase.toLocaleString()}`;
-                                    }
-                                    return label;
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            grid: {
-                                color: 'rgba(0, 0, 0, 0.1)',
-                                drawBorder: false
-                            },
-                            ticks: {
-                                color: '#666',
-                                font: {
-                                    size: 12
-                                },
-                                callback: function(value) {
-                                    if (value >= 1000000) {
-                                        return '¥' + (value / 1000000).toFixed(1) + 'M';
-                                    } else if (value >= 1000) {
-                                        return '¥' + (value / 1000).toFixed(1) + 'K';
-                                    }
-                                    return '¥' + value.toLocaleString();
-                                }
-                            }
-                        },
-                        x: {
-                            grid: {
-                                display: dimension === 'month',
-                                color: 'rgba(0, 0, 0, 0.1)',
-                                drawBorder: false
-                            },
-                            ticks: {
-                                color: '#666',
-                                font: {
-                                    size: 11
-                                },
-                                maxRotation: dimension === 'month' ? 0 : 45,
-                                maxTicksLimit: 12
-                            }
-                        }
-                    },
-                    animation: {
-                        duration: 1000,
-                        easing: 'easeInOutQuart'
-                    }
-                }
-            });
-        }
-
-        // 生成对比分析
-        function generateComparison() {
-            const metricsSelect = document.getElementById('comparison-metrics');
-            const dimensionsSelect = document.getElementById('comparison-dimensions');
-            
-            const selectedMetrics = Array.from(metricsSelect.selectedOptions).map(option => option.value);
-            const selectedDimensions = Array.from(dimensionsSelect.selectedOptions).map(option => option.value);
-
-            if (selectedMetrics.length === 0 || selectedDimensions.length === 0) {
-                showError('请选择至少一个指标和一个维度');
-                return;
-            }
-
-            const startDate = document.getElementById('start-date').value;
-            const endDate = document.getElementById('end-date').value;
-
-            showLoading('正在生成对比分析...');
-
-            vscode.postMessage({
-                command: 'getComparisonAnalysis',
-                params: {
-                    metrics: selectedMetrics,
-                    dimensions: selectedDimensions,
-                    start_date: startDate,
-                    end_date: endDate
-                }
-            });
-        }
-
-        // 显示对比分析结果
-        function displayComparisonAnalysis(data) {
-            const resultsDiv = document.getElementById('comparison-results');
-            
-            let html = '<h4>📊 对比分析结果</h4>';
-            
-            if (data.sales_analysis && data.sales_analysis.length > 0) {
-                html += generateComparisonTable('销售数据分析', data.sales_analysis);
-            }
-            
-            if (data.purchase_analysis && data.purchase_analysis.length > 0) {
-                html += generateComparisonTable('采购数据分析', data.purchase_analysis);
-            }
-            
-            if (data.inventory_analysis && data.inventory_analysis.length > 0) {
-                html += generateComparisonTable('库存数据分析', data.inventory_analysis);
-            }
-
-            resultsDiv.innerHTML = html;
-        }
-
-        // 生成对比表格
-        function generateComparisonTable(title, data) {
-            if (!data || data.length === 0) return '';
-            
-            const firstRow = data[0];
-            const headers = Object.keys(firstRow._id);
-            const metrics = Object.keys(firstRow).filter(key => key !== '_id');
-
-            let html = `<h5>${title}</h5><table class="data-table"><thead><tr>`;
-            
-            headers.forEach(header => {
-                html += `<th>${getHeaderName(header)}</th>`;
-            });
-            
-            metrics.forEach(metric => {
-                html += `<th>${getMetricName(metric)}</th>`;
-            });
-            
-            html += '</tr></thead><tbody>';
-
-            data.forEach(row => {
-                html += '<tr>';
-                headers.forEach(header => {
-                    html += `<td>${row._id[header] || '未知'}</td>`;
-                });
-                metrics.forEach(metric => {
-                    const value = row[metric] || 0;
-                    html += `<td>${metric.includes('amount') || metric.includes('value') ? formatCurrency(value) : value.toLocaleString()}</td>`;
-                });
-                html += '</tr>';
-            });
-
-            html += '</tbody></table>';
-            return html;
-        }
-
-        // 获取表头名称
-        function getHeaderName(header) {
-            const names = {
-                'month': '月份',
-                'product': '产品',
-                'customer': '客户',
-                'supplier': '供应商',
-                'material': '物料'
-            };
-            return names[header] || header;
-        }
-
-        // 获取指标名称
-        function getMetricName(metric) {
-            const names = {
-                'total_sales': '销售总额',
-                'sales_count': '销售笔数',
-                'total_purchases': '采购总额',
-                'purchase_count': '采购笔数',
-                'inventory_value': '库存价值',
-                'stock_quantity': '库存数量'
-            };
-            return names[metric] || metric;
-        }
-
-        // 导出仪表板
-        function exportDashboard() {
-            vscode.postMessage({
-                command: 'exportDashboard',
-                params: {
-                    start_date: document.getElementById('start-date').value,
-                    end_date: document.getElementById('end-date').value
-                }
-            });
-        }
-
-        // 格式化货币
-        function formatCurrency(amount) {
-            if (amount === null || amount === undefined) return '¥0.00';
-            return '¥' + parseFloat(amount).toLocaleString('zh-CN', { minimumFractionDigits: 2 });
-        }
-
-        // 处理仪表板概览数据
-        function handleDashboardData(data) {
-            try {
-                if (!data || typeof data !== 'object') {
-                    throw new Error('无效的仪表板数据格式');
-                }
-
-                dashboardData = data;
-                
-                // 生成关键指标卡片
-                if (data.overview) {
-                    generateMetricCards(data);
-                }
-
-                // 如果包含销售趋势数据，创建默认图表
-                if (data.sales_trend && Array.isArray(data.sales_trend)) {
-                    createSalesTrendChart(data.sales_trend, 'month');
-                }
-
-                // 如果包含客户数据，创建客户价值图表
-                if (data.top_customers && Array.isArray(data.top_customers)) {
-                    createCustomerValueChart(data.top_customers);
-                }
-
-                console.log('仪表板数据处理完成');
+                     console.error('无效的数据格式:', response);
+                     hideLoading();
+                     showError('收到的数据格式无效');
+                 }
             } catch (error) {
                 console.error('处理仪表板数据时出错:', error);
-                showUserFriendlyError('仪表板数据处理失败', error.message);
-            }
-        }
-
-        // 处理销售趋势数据 - 改进版
-        function handleSalesTrendData(data, dimension = 'month') {
-            try {
-                if (!data || !Array.isArray(data)) {
-                    throw new Error('销售趋势数据格式无效');
-                }
-
-                if (data.length === 0) {
-                    // 显示无数据提示
-                    const ctx = document.getElementById('salesTrendChart').getContext('2d');
-                    if (salesTrendChart) {
-                        salesTrendChart.destroy();
-                    }
-                    
-                    const chartContainer = document.querySelector('#salesTrendChart').parentElement;
-                    chartContainer.innerHTML = '<div class="chart-placeholder">📊 暂无销售趋势数据</div>';
-                    return;
-                }
-
-                // 数据清洗和验证
-                const cleanedData = data.filter(item => {
-                    // 过滤掉无效数据
-                    if (dimension === 'product') {
-                        return item._id && (item.total_sales || 0) > 0;
-                    } else {
-                        return (item.month || item.quarter || item._id) && (item.total_sales || 0) >= 0;
-                    }
-                });
-
-                if (cleanedData.length === 0) {
-                    const chartContainer = document.querySelector('#salesTrendChart').parentElement;
-                    chartContainer.innerHTML = '<div class="chart-placeholder">📊 暂无有效的销售趋势数据</div>';
-                    return;
-                }
-
-                // 数据统计信息
-                const totalSales = cleanedData.reduce((sum, item) => sum + (item.total_sales || 0), 0);
-                const avgSales = totalSales / cleanedData.length;
-                
-                console.log(`销售趋势数据统计 (${dimension}):`, {
-                    总记录数: cleanedData.length,
-                    总销售额: totalSales.toLocaleString(),
-                    平均销售额: avgSales.toLocaleString()
-                });
-
-                createSalesTrendChart(cleanedData, dimension);
-                console.log(`销售趋势数据处理完成 (${dimension})`);
-            } catch (error) {
-                console.error('处理销售趋势数据时出错:', error);
-                showUserFriendlyError('销售趋势数据处理失败', error.message);
-            }
-        }
-
-        // 处理客户分析数据
-        function handleCustomerAnalysisData(data) {
-            try {
-                if (!data || !Array.isArray(data)) {
-                    throw new Error('客户分析数据格式无效');
-                }
-
-                if (data.length === 0) {
-                    // 显示无数据提示
-                    const summaryDiv = document.getElementById('customer-summary');
-                    const tableDiv = document.getElementById('customer-table');
-                    
-                    if (summaryDiv) {
-                        summaryDiv.innerHTML = '<div class="info-message">📊 暂无客户分析数据</div>';
-                    }
-                    if (tableDiv) {
-                        tableDiv.innerHTML = '<div class="info-message">👥 暂无客户详细信息</div>';
-                    }
-                    return;
-                }
-
-                // 验证客户数据结构
-                const requiredFields = ['customer_name', 'customer_segment'];
-                const isValidData = data.every(customer => 
-                    requiredFields.every(field => customer.hasOwnProperty(field))
-                );
-
-                if (!isValidData) {
-                    console.warn('部分客户数据缺少必要字段，将使用默认值');
-                }
-
-                // 创建客户价值图表
-                createCustomerValueChart(data);
-                
-                // 显示客户详细分析
-                displayCustomerAnalysis(data);
-                
-                console.log('客户分析数据处理完成');
-            } catch (error) {
-                console.error('处理客户分析数据时出错:', error);
-                showUserFriendlyError('客户分析数据处理失败', error.message);
-            }
-        }
-
-        // 处理库存分析数据
-        function handleInventoryAnalysisData(data) {
-            try {
-                if (!data || typeof data !== 'object') {
-                    throw new Error('库存分析数据格式无效');
-                }
-
-                // 验证库存数据结构
-                const requiredFields = ['overall_turnover_rate', 'turnover_analysis'];
-                const missingFields = requiredFields.filter(field => !data.hasOwnProperty(field));
-                
-                if (missingFields.length > 0) {
-                    console.warn(`库存数据缺少字段: ${missingFields.join(', ')}，将使用默认值`);
-                }
-
-                // 确保数据完整性
-                const processedData = {
-                    overall_turnover_rate: data.overall_turnover_rate || 0,
-                    fast_moving_items: data.fast_moving_items || 0,
-                    slow_moving_items: data.slow_moving_items || 0,
-                    dead_stock_count: data.dead_stock_count || 0,
-                    turnover_analysis: data.turnover_analysis || [],
-                    dead_stock_items: data.dead_stock_items || []
-                };
-
-                displayInventoryAnalysis(processedData);
-                console.log('库存分析数据处理完成');
-            } catch (error) {
-                console.error('处理库存分析数据时出错:', error);
-                showUserFriendlyError('库存分析数据处理失败', error.message);
-            }
-        }
-
-        // 统一错误处理函数 - 增强版
-        function handleError(error, context = '未知操作') {
-            console.error(`${context}发生错误:`, error);
-            
-            // 隐藏加载状态
-            hideLoading();
-            
-            // 错误分类和处理
-            let errorInfo = categorizeError(error, context);
-            
-            // 记录错误日志
-            logError(error, context, errorInfo);
-            
-            // 显示用户友好的错误信息
-            showUserFriendlyError(errorInfo.title, errorInfo.message, errorInfo.suggestions, errorInfo.canRetry);
-        }
-
-        // 错误分类函数
-        function categorizeError(error, context) {
-            let errorInfo = {
-                title: '系统错误',
-                message: '发生未知错误',
-                suggestions: ['请稍后重试', '如问题持续存在，请联系管理员'],
-                canRetry: true,
-                severity: 'medium'
-            };
-
-            // 根据错误代码分类
-            if (error && error.code) {
-                switch (error.code) {
-                    case 'DB_CONNECTION_FAILED':
-                    case 'DATABASE_ERROR':
-                        errorInfo = {
-                            title: '数据库连接失败',
-                            message: '无法连接到数据库服务器',
-                            suggestions: [
-                                '检查数据库服务是否正常运行',
-                                '验证数据库连接配置',
-                                '稍后重试操作'
-                            ],
-                            canRetry: true,
-                            severity: 'high'
-                        };
-                        break;
-                    
-                    case 'NETWORK_ERROR':
-                    case 'CONNECTION_TIMEOUT':
-                        errorInfo = {
-                            title: '网络连接失败',
-                            message: '网络连接超时或中断',
-                            suggestions: [
-                                '检查网络连接状态',
-                                '确认服务器地址是否正确',
-                                '稍后重试操作'
-                            ],
-                            canRetry: true,
-                            severity: 'high'
-                        };
-                        break;
-                    
-                    case 'DATA_PROCESSING_ERROR':
-                    case 'INVALID_DATA_FORMAT':
-                        errorInfo = {
-                            title: '数据处理失败',
-                            message: '数据格式无效或处理过程中出现错误',
-                            suggestions: [
-                                '检查数据完整性',
-                                '验证数据格式是否正确',
-                                '联系管理员检查数据源'
-                            ],
-                            canRetry: false,
-                            severity: 'medium'
-                        };
-                        break;
-                    
-                    case 'PERMISSION_DENIED':
-                    case 'ACCESS_DENIED':
-                        errorInfo = {
-                            title: '权限不足',
-                            message: '您没有执行此操作的权限',
-                            suggestions: [
-                                '联系管理员获取相应权限',
-                                '确认您的账户状态'
-                            ],
-                            canRetry: false,
-                            severity: 'medium'
-                        };
-                        break;
-                    
-                    case 'PYTHON_SCRIPT_ERROR':
-                        errorInfo = {
-                            title: '数据分析服务错误',
-                            message: '后端数据分析脚本执行失败',
-                            suggestions: [
-                                '检查Python环境和依赖包',
-                                '验证数据分析脚本配置',
-                                '查看详细错误日志'
-                            ],
-                            canRetry: true,
-                            severity: 'high'
-                        };
-                        break;
-                    
-                    case 'TIMEOUT_ERROR':
-                        errorInfo = {
-                            title: '操作超时',
-                            message: '操作执行时间过长，已超时',
-                            suggestions: [
-                                '减少数据查询范围',
-                                '稍后重试操作',
-                                '联系管理员优化查询性能'
-                            ],
-                            canRetry: true,
-                            severity: 'medium'
-                        };
-                        break;
-                    
-                    case 'MEMORY_ERROR':
-                        errorInfo = {
-                            title: '内存不足',
-                            message: '系统内存不足，无法完成操作',
-                            suggestions: [
-                                '减少数据处理量',
-                                '关闭其他应用程序',
-                                '稍后重试操作'
-                            ],
-                            canRetry: true,
-                            severity: 'high'
-                        };
-                        break;
-                    
-                    default:
-                        errorInfo.message = error.message || error.details || '发生未知系统错误';
-                        break;
-                }
-            } else if (typeof error === 'string') {
-                // 处理字符串错误
-                if (error.toLowerCase().includes('connection')) {
-                    errorInfo.title = '连接错误';
-                    errorInfo.message = error;
-                    errorInfo.severity = 'high';
-                } else if (error.toLowerCase().includes('timeout')) {
-                    errorInfo.title = '超时错误';
-                    errorInfo.message = error;
-                    errorInfo.severity = 'medium';
-                } else if (error.toLowerCase().includes('permission') || error.toLowerCase().includes('access')) {
-                    errorInfo.title = '权限错误';
-                    errorInfo.message = error;
-                    errorInfo.canRetry = false;
-                    errorInfo.severity = 'medium';
-                } else {
-                    errorInfo.message = error;
-                }
-            } else if (error && error.message) {
-                // 处理标准错误对象
-                errorInfo.message = error.message;
-                if (error.stack) {
-                    console.error('错误堆栈:', error.stack);
-                }
-            }
-
-            return errorInfo;
-        }
-
-        // 错误日志记录函数
-        function logError(error, context, errorInfo) {
-            const timestamp = new Date().toISOString();
-            const logEntry = {
-                timestamp,
-                context,
-                error: {
-                    message: error.message || error,
-                    code: error.code,
-                    stack: error.stack
-                },
-                errorInfo,
-                userAgent: navigator.userAgent,
-                url: window.location.href
-            };
-            
-            // 记录到控制台
-            console.group(`🚨 错误日志 - ${timestamp}`);
-            console.error('上下文:', context);
-            console.error('错误信息:', error);
-            console.error('分类结果:', errorInfo);
-            console.groupEnd();
-            
-            // 可以在这里添加发送错误日志到服务器的逻辑
-            // sendErrorToServer(logEntry);
-        }
-
-        // 显示用户友好的错误信息 - 增强版
-        function showUserFriendlyError(title, message = '', suggestions = [], canRetry = true) {
-            // 隐藏加载状态
-            hideLoading();
-            
-            // 移除之前的错误消息
-            const existingErrors = document.querySelectorAll('.error-message');
-            existingErrors.forEach(error => error.remove());
-            
-            const errorDiv = document.createElement('div');
-            errorDiv.className = 'error-message';
-            
-            // 构建错误消息HTML
-            let errorHtml = `
-                <div style="display: flex; align-items: flex-start; gap: 12px;">
-                    <div style="font-size: 24px; flex-shrink: 0;">❌</div>
-                    <div style="flex: 1;">
-                        <div style="font-weight: bold; font-size: 16px; margin-bottom: 8px;">${title}</div>
-            `;
-            
-            if (message) {
-                errorHtml += `<div style="margin-bottom: 12px; color: #721c24;">${message}</div>`;
-            }
-            
-            // 添加建议列表
-            if (suggestions && suggestions.length > 0) {
-                errorHtml += `
-                    <div style="margin-bottom: 12px;">
-                        <div style="font-weight: 500; margin-bottom: 6px;">💡 解决建议：</div>
-                        <ul style="margin: 0; padding-left: 20px; color: #721c24;">
-                `;
-                suggestions.forEach(suggestion => {
-                    errorHtml += `<li style="margin-bottom: 4px;">${suggestion}</li>`;
-                });
-                errorHtml += '</ul></div>';
-            }
-            
-            // 添加操作按钮
-            errorHtml += '<div style="display: flex; gap: 10px; margin-top: 12px;">';
-            
-            if (canRetry) {
-                errorHtml += `
-                    <button class="btn btn-primary" style="padding: 8px 16px; font-size: 14px;" onclick="handleRetryAction('${title}')">
-                        🔄 重试
-                    </button>
-                `;
-            }
-            
-            // 添加关闭按钮
-            errorHtml += `
-                <button class="btn btn-secondary" style="padding: 8px 16px; font-size: 14px;" onclick="this.parentElement.parentElement.parentElement.parentElement.remove()">
-                    ✖️ 关闭
-                </button>
-            `;
-            
-            errorHtml += '</div></div></div>';
-            
-            errorDiv.innerHTML = errorHtml;
-            
-            // 插入到容器顶部
-            const container = document.querySelector('.container');
-            const insertPoint = container.querySelector('.toolbar') || container.firstElementChild.nextElementSibling;
-            container.insertBefore(errorDiv, insertPoint);
-            
-            // 添加淡入动画
-            errorDiv.style.opacity = '0';
-            errorDiv.style.transform = 'translateY(-10px)';
-            errorDiv.style.transition = 'all 0.3s ease';
-            
-            setTimeout(() => {
-                errorDiv.style.opacity = '1';
-                errorDiv.style.transform = 'translateY(0)';
-            }, 10);
-            
-            // 10秒后自动移除（除非用户交互）
-            setTimeout(() => {
-                if (errorDiv.parentNode && !errorDiv.dataset.userInteracted) {
-                    errorDiv.style.opacity = '0';
-                    errorDiv.style.transform = 'translateY(-10px)';
-                    setTimeout(() => {
-                        if (errorDiv.parentNode) {
-                            errorDiv.remove();
-                        }
-                    }, 300);
-                }
-            }, 10000);
-            
-            // 标记用户交互
-            errorDiv.addEventListener('click', () => {
-                errorDiv.dataset.userInteracted = 'true';
-            });
-        }
-
-        // 处理重试操作
-        function handleRetryAction(errorTitle) {
-            // 根据错误类型执行相应的重试操作
-            if (errorTitle.includes('数据库连接') || errorTitle.includes('网络连接') || 
-                errorTitle.includes('数据分析服务') || errorTitle.includes('操作超时')) {
-                refreshDashboard();
-            } else if (errorTitle.includes('销售趋势')) {
-                // 重新加载当前选中的销售趋势
-                const activeTab = document.querySelector('.analysis-tab.active');
-                if (activeTab) {
-                    const dimension = activeTab.textContent.includes('月度') ? 'month' : 
-                                    activeTab.textContent.includes('季度') ? 'quarter' : 'product';
-                    showSalesTrend(dimension);
-                }
-            } else if (errorTitle.includes('库存分析')) {
-                loadInventoryAnalysis();
-            } else if (errorTitle.includes('客户分析')) {
-                loadCustomerAnalysis();
-            } else if (errorTitle.includes('采购趋势')) {
-                loadPurchaseAnalysis();
-            } else {
-                // 默认重试操作
-                refreshDashboard();
-            }
-        }
-
-        // 监听来自VSCode的消息 - 完善的消息处理器
-        window.addEventListener('message', event => {
-            const message = event.data;
-            
-            try {
-                // 验证消息格式
-                if (!message || typeof message !== 'object') {
-                    throw new Error('收到无效的消息格式');
-                }
-
-                // 记录消息接收日志
-                console.log(`📨 收到消息: ${message.command}`, message);
-
-                switch (message.command) {
-                    case 'dashboardData':
-                        hideLoading();
-                        if (message.success) {
-                            handleDashboardData(message.data);
-                        } else {
-                            const error = message.error || { message: '加载仪表板数据失败' };
-                            handleError(error, '仪表板数据加载');
-                        }
-                        break;
-
-                    case 'salesTrendData':
-                        hideLoading();
-                        if (message.success) {
-                            handleSalesTrendData(message.data, message.dimension);
-                        } else {
-                            const error = message.error || { message: '加载销售趋势失败' };
-                            handleError(error, '销售趋势分析');
-                        }
-                        break;
-
-                    case 'inventoryAnalysisData':
-                        hideLoading();
-                        if (message.success) {
-                            handleInventoryAnalysisData(message.data);
-                        } else {
-                            const error = message.error || { message: '加载库存分析失败' };
-                            handleError(error, '库存分析');
-                        }
-                        break;
-
-                    case 'customerAnalysisData':
-                        hideLoading();
-                        if (message.success) {
-                            handleCustomerAnalysisData(message.data);
-                        } else {
-                            const error = message.error || { message: '加载客户分析失败' };
-                            handleError(error, '客户分析');
-                        }
-                        break;
-
-                    case 'purchaseTrendData':
-                        hideLoading();
-                        if (message.success) {
-                            createPurchaseTrendChart(message.data, message.dimension);
-                        } else {
-                            const error = message.error || { message: '加载采购趋势失败' };
-                            handleError(error, '采购趋势分析');
-                        }
-                        break;
-
-                    case 'comparisonAnalysisData':
-                        hideLoading();
-                        if (message.success) {
-                            displayComparisonAnalysis(message.data);
-                        } else {
-                            const error = message.error || { message: '生成对比分析失败' };
-                            handleError(error, '对比分析');
-                        }
-                        break;
-
-                    case 'exportResult':
-                        hideLoading();
-                        if (message.success) {
-                            showSuccessMessage('仪表板报告已导出成功');
-                        } else {
-                            const error = message.error || { message: '导出失败' };
-                            handleError(error, '报告导出');
-                        }
-                        break;
-
-                    case 'connectionStatus':
-                        // 处理连接状态更新
-                        handleConnectionStatus(message.status, message.details);
-                        break;
-
-                    case 'progress':
-                        // 处理进度更新
-                        if (message.progress !== undefined) {
-                            updateLoadingStatus(message.message || '处理中...', message.progress);
-                        }
-                        break;
-
-                    case 'error':
-                        hideLoading();
-                        const error = message.error || message.message || { message: '系统错误' };
-                        handleError(error, message.context || '系统操作');
-                        break;
-
-                    case 'warning':
-                        showWarningMessage(message.message || '系统警告');
-                        break;
-
-                    case 'info':
-                        showInfoMessage(message.message || '系统信息');
-                        break;
-
-                    default:
-                        console.warn('收到未知消息类型:', message.command, message);
-                        // 不显示错误，只记录日志
-                        break;
-                }
-            } catch (processingError) {
-                console.error('处理消息时发生错误:', processingError);
                 hideLoading();
-                handleError({
-                    code: 'MESSAGE_PROCESSING_ERROR',
-                    message: '消息处理失败: ' + processingError.message,
-                    details: processingError.stack
-                }, '消息处理');
-            }
-        });
-
-        // 处理连接状态
-        function handleConnectionStatus(status, details) {
-            const statusMessages = {
-                'connecting': '正在连接数据库...',
-                'connected': '数据库连接成功',
-                'disconnected': '数据库连接已断开',
-                'error': '数据库连接失败'
-            };
-
-            const message = statusMessages[status] || '未知连接状态';
-            
-            if (status === 'connected') {
-                showSuccessMessage(message);
-            } else if (status === 'error') {
-                handleError({
-                    code: 'DB_CONNECTION_FAILED',
-                    message: message,
-                    details: details
-                }, '数据库连接');
-            } else if (status === 'disconnected') {
-                showWarningMessage(message + ' - 某些功能可能不可用');
-            } else {
-                updateLoadingStatus(message);
+                showError('仪表板数据处理失败: ' + error.message);
             }
         }
 
-        // 显示成功消息
-        function showSuccessMessage(message) {
-            const successDiv = document.createElement('div');
-            successDiv.className = 'success-message';
-            successDiv.innerHTML = `
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <span style="font-size: 20px;">✅</span>
-                    <span>${message}</span>
-                    <button onclick="this.parentElement.parentElement.remove()" style="margin-left: auto; background: none; border: none; font-size: 16px; cursor: pointer;">✖️</button>
-                </div>
-            `;
+        // 生成模拟销售趋势数据
+        function generateMockSalesTrend(data) {
+            const months = ['1月', '2月', '3月', '4月', '5月', '6月'];
+            const baseSales = data.total_sales || 0;
             
-            const container = document.querySelector('.container');
-            const insertPoint = container.querySelector('.toolbar') || container.firstElementChild.nextElementSibling;
-            container.insertBefore(successDiv, insertPoint);
-            
-            // 5秒后自动移除
-            setTimeout(() => {
-                if (successDiv.parentNode) {
-                    successDiv.remove();
-                }
-            }, 5000);
+            return months.map((month, index) => ({
+                period: month,
+                total_sales: baseSales * (0.8 + Math.random() * 0.4) / 6
+            }));
         }
-
-        // 显示警告消息
-        function showWarningMessage(message) {
-            const warningDiv = document.createElement('div');
-            warningDiv.className = 'info-message';
-            warningDiv.style.borderLeftColor = '#ffc107';
-            warningDiv.style.backgroundColor = '#fff3cd';
-            warningDiv.style.color = '#856404';
-            warningDiv.innerHTML = `
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <span style="font-size: 20px;">⚠️</span>
-                    <span>${message}</span>
-                    <button onclick="this.parentElement.parentElement.remove()" style="margin-left: auto; background: none; border: none; font-size: 16px; cursor: pointer;">✖️</button>
-                </div>
-            `;
+        
+        // 生成模拟客户数据
+        function generateMockCustomerData(data) {
+            const customerNames = ['客户A', '客户B', '客户C', '客户D', '客户E'];
+            const totalValue = data.total_sales || 1000;
             
-            const container = document.querySelector('.container');
-            const insertPoint = container.querySelector('.toolbar') || container.firstElementChild.nextElementSibling;
-            container.insertBefore(warningDiv, insertPoint);
-            
-            // 8秒后自动移除
-            setTimeout(() => {
-                if (warningDiv.parentNode) {
-                    warningDiv.remove();
-                }
-            }, 8000);
-        }
-
-        // 显示信息消息
-        function showInfoMessage(message) {
-            const infoDiv = document.createElement('div');
-            infoDiv.className = 'info-message';
-            infoDiv.innerHTML = `
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <span style="font-size: 20px;">ℹ️</span>
-                    <span>${message}</span>
-                    <button onclick="this.parentElement.parentElement.remove()" style="margin-left: auto; background: none; border: none; font-size: 16px; cursor: pointer;">✖️</button>
-                </div>
-            `;
-            
-            const container = document.querySelector('.container');
-            const insertPoint = container.querySelector('.toolbar') || container.firstElementChild.nextElementSibling;
-            container.insertBefore(infoDiv, insertPoint);
-            
-            // 6秒后自动移除
-            setTimeout(() => {
-                if (infoDiv.parentNode) {
-                    infoDiv.remove();
-                }
-            }, 6000);
-        }
-
-        // ========== 数据处理函数 ==========
-
-        // 处理仪表板概览数据
-        function handleDashboardData(data) {
-            console.log('📊 收到仪表板数据:', data);
-            
-            try {
-                hideLoading();
-                
-                if (!data) {
-                    showError('未收到有效的仪表板数据');
-                    return;
-                }
-
-                if (!data.success) {
-                    const errorMessage = data.error?.message || '获取仪表板数据失败';
-                    showError(errorMessage);
-                    return;
-                }
-
-                // 保存数据到全局变量
-                dashboardData = data.data;
-                
-                // 生成关键指标卡片
-                generateMetricCards(data.data);
-                
-                // 显示成功消息
-                showSuccess('仪表板数据加载完成');
-                
-                console.log('✅ 仪表板数据处理完成');
-                
-            } catch (error) {
-                console.error('❌ 处理仪表板数据时出错:', error);
-                hideLoading();
-                showError('处理仪表板数据时出错: ' + error.message);
-            }
-        }
-
-        // 处理销售趋势数据
-        function handleSalesTrendData(data, dimension) {
-            console.log('📈 收到销售趋势数据:', data, '维度:', dimension);
-            
-            try {
-                hideLoading();
-                
-                if (!data) {
-                    showError('未收到有效的销售趋势数据');
-                    return;
-                }
-
-                if (!data.success) {
-                    const errorMessage = data.error?.message || '获取销售趋势数据失败';
-                    showError(errorMessage);
-                    return;
-                }
-
-                // 创建销售趋势图表
-                createSalesTrendChart(data.data, dimension || 'month');
-                
-                console.log('✅ 销售趋势数据处理完成');
-                
-            } catch (error) {
-                console.error('❌ 处理销售趋势数据时出错:', error);
-                hideLoading();
-                showError('处理销售趋势数据时出错: ' + error.message);
-            }
-        }
-
-        // 处理客户分析数据
-        function handleCustomerAnalysisData(data) {
-            console.log('👥 收到客户分析数据:', data);
-            
-            try {
-                hideLoading();
-                
-                if (!data) {
-                    showError('未收到有效的客户分析数据');
-                    return;
-                }
-
-                if (!data.success) {
-                    const errorMessage = data.error?.message || '获取客户分析数据失败';
-                    showError(errorMessage);
-                    return;
-                }
-
-                // 创建客户价值图表
-                createCustomerValueChart(data.data);
-                
-                // 更新客户详细分析表格
-                updateCustomerDetailTable(data.data);
-                
-                console.log('✅ 客户分析数据处理完成');
-                
-            } catch (error) {
-                console.error('❌ 处理客户分析数据时出错:', error);
-                hideLoading();
-                showError('处理客户分析数据时出错: ' + error.message);
-            }
-        }
-
-        // 处理库存分析数据
-        function handleInventoryAnalysisData(data) {
-            console.log('📦 收到库存分析数据:', data);
-            
-            try {
-                hideLoading();
-                
-                if (!data) {
-                    showError('未收到有效的库存分析数据');
-                    return;
-                }
-
-                if (!data.success) {
-                    const errorMessage = data.error?.message || '获取库存分析数据失败';
-                    showError(errorMessage);
-                    return;
-                }
-
-                // 更新库存概览
-                updateInventorySummary(data.data);
-                
-                // 创建库存周转图表
-                createInventoryChart(data.data);
-                
-                // 更新呆滞库存表格
-                updateDeadStockTable(data.data);
-                
-                console.log('✅ 库存分析数据处理完成');
-                
-            } catch (error) {
-                console.error('❌ 处理库存分析数据时出错:', error);
-                hideLoading();
-                showError('处理库存分析数据时出错: ' + error.message);
-            }
-        }
-
-        // 处理对比分析数据
-        function handleComparisonAnalysisData(data) {
-            console.log('⚖️ 收到对比分析数据:', data);
-            
-            try {
-                hideLoading();
-                
-                if (!data) {
-                    showError('未收到有效的对比分析数据');
-                    return;
-                }
-
-                if (!data.success) {
-                    const errorMessage = data.error?.message || '获取对比分析数据失败';
-                    showError(errorMessage);
-                    return;
-                }
-
-                // 显示对比分析结果
-                displayComparisonResults(data.data);
-                
-                console.log('✅ 对比分析数据处理完成');
-                
-            } catch (error) {
-                console.error('❌ 处理对比分析数据时出错:', error);
-                hideLoading();
-                showError('处理对比分析数据时出错: ' + error.message);
-            }
-        }
-
-        // 统一错误处理函数
-        function handleError(error, context = '') {
-            console.error('❌ 系统错误:', error, context);
-            
-            hideLoading();
-            
-            let errorMessage = '系统出现错误';
-            let suggestions = [];
-            
-            if (typeof error === 'string') {
-                errorMessage = error;
-            } else if (error && typeof error === 'object') {
-                errorMessage = error.message || error.error || '未知错误';
-                
-                // 根据错误代码提供建议
-                if (error.code) {
-                    switch (error.code) {
-                        case 'DB_CONNECTION_FAILED':
-                            suggestions = ['检查数据库服务状态', '验证连接配置', '稍后重试'];
-                            break;
-                        case 'INVALID_DATE_RANGE':
-                            suggestions = ['检查日期范围设置', '确保开始日期早于结束日期'];
-                            break;
-                        case 'NO_DATA_FOUND':
-                            suggestions = ['尝试扩大日期范围', '检查数据是否已导入'];
-                            break;
-                        case 'PROCESSING_TIMEOUT':
-                            suggestions = ['减少数据范围', '稍后重试'];
-                            break;
-                        default:
-                            suggestions = ['刷新页面重试', '检查网络连接'];
-                    }
-                }
-            }
-            
-            // 显示用户友好的错误信息
-            showUserFriendlyError(errorMessage, suggestions, context);
-        }
-
-        // 显示用户友好的错误信息
-        function showUserFriendlyError(message, suggestions = [], context = '') {
-            const errorDiv = document.createElement('div');
-            errorDiv.className = 'error-message';
-            
-            let suggestionHtml = '';
-            if (suggestions.length > 0) {
-                suggestionHtml = `
-                    <div style="margin-top: 10px; font-size: 14px;">
-                        <strong>建议解决方案：</strong>
-                        <ul style="margin: 5px 0 0 20px; padding: 0;">
-                            ${suggestions.map(s => `<li>${s}</li>`).join('')}
-                        </ul>
-                    </div>
-                `;
-            }
-            
-            errorDiv.innerHTML = `
-                <div style="display: flex; align-items: flex-start; gap: 10px;">
-                    <span style="font-size: 20px; margin-top: 2px;">❌</span>
-                    <div style="flex: 1;">
-                        <div style="font-weight: 500; margin-bottom: 5px;">
-                            ${context ? `[${context}] ` : ''}${message}
-                        </div>
-                        ${suggestionHtml}
-                        <div style="margin-top: 10px;">
-                            <button onclick="refreshDashboard()" class="btn btn-primary" style="padding: 6px 12px; font-size: 12px; margin-right: 8px;">
-                                🔄 重新加载
-                            </button>
-                            <button onclick="this.closest('.error-message').remove()" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">
-                                ✖️ 关闭
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            const container = document.querySelector('.container');
-            const insertPoint = container.querySelector('.toolbar') || container.firstElementChild.nextElementSibling;
-            container.insertBefore(errorDiv, insertPoint);
-            
-            // 10秒后自动移除
-            setTimeout(() => {
-                if (errorDiv.parentNode) {
-                    errorDiv.remove();
-                }
-            }, 10000);
-        }
-
-        // ========== 辅助函数 ==========
-
-        // 格式化货币显示
-        function formatCurrency(amount) {
-            if (amount === null || amount === undefined) return '¥0';
-            
-            const num = parseFloat(amount);
-            if (isNaN(num)) return '¥0';
-            
-            if (num >= 1000000) {
-                return '¥' + (num / 1000000).toFixed(1) + 'M';
-            } else if (num >= 1000) {
-                return '¥' + (num / 1000).toFixed(1) + 'K';
-            }
-            return '¥' + num.toLocaleString();
+            return customerNames.map((name, index) => ({
+                customer_name: name,
+                monetary: totalValue * (0.3 - index * 0.05)
+            }));
         }
 
         // 生成关键指标卡片
         function generateMetricCards(data) {
             const metricsGrid = document.getElementById('metrics-grid');
-            const overview = data.overview || {};
+            const overview = data || {};
 
             const metrics = [
                 {
@@ -3113,209 +277,95 @@
                     icon: '💰'
                 },
                 {
-                    title: '总订单数',
-                    value: (overview.total_sales_count || 0).toLocaleString(),
-                    label: '本期订单总数',
-                    icon: '📋'
-                },
-                {
-                    title: '活跃客户',
-                    value: (overview.active_customers || 0).toLocaleString(),
-                    label: `客户活跃度 ${((overview.customer_activity_rate || 0) * 100).toFixed(1)}%`,
-                    icon: '👥'
-                },
-                {
-                    title: '库存价值',
+                    title: '库存总值',
                     value: formatCurrency(overview.total_inventory_value || 0),
-                    label: `低库存预警 ${overview.low_stock_items || 0} 项`,
+                    label: '当前库存价值',
                     icon: '📦'
                 },
                 {
-                    title: '平均订单价值',
-                    value: formatCurrency(overview.avg_order_value || 0),
-                    label: '每单平均金额',
-                    icon: '💳'
+                    title: '库存商品',
+                    value: (overview.total_inventory_items || 0).toLocaleString() + ' 种',
+                    label: '库存商品种类',
+                    icon: '📋'
                 },
                 {
-                    title: '毛利润',
-                    value: formatCurrency(overview.gross_margin || 0),
-                    label: '销售额 - 采购额',
-                    icon: '📈'
+                    title: '缺货商品',
+                    value: (overview.out_of_stock_items || 0).toLocaleString() + ' 种',
+                    label: '需要补货',
+                    icon: '⚠️'
+                },
+                {
+                    title: '总采购额',
+                    value: formatCurrency(overview.total_purchases || 0),
+                    label: '本期采购总额',
+                    icon: '🛒'
+                },
+                {
+                    title: '活跃供应商',
+                    value: (overview.active_suppliers || 0).toLocaleString(),
+                    label: '供应商数量',
+                    icon: '🏭'
                 }
             ];
 
-            metricsGrid.innerHTML = metrics.map(metric => `
-                <div class="metric-card">
-                    <h3>${metric.icon} ${metric.title}</h3>
-                    <div class="metric-value">${metric.value}</div>
-                    <div class="metric-label">${metric.label}</div>
-                </div>
-            `).join('');
+            let cardsHtml = '';
+            metrics.forEach(metric => {
+                cardsHtml += `
+                    <div class="metric-card">
+                        <h3>${metric.icon} ${metric.title}</h3>
+                        <div class="metric-value">${metric.value}</div>
+                        <div class="metric-label">${metric.label}</div>
+                    </div>
+                `;
+            });
+
+            metricsGrid.innerHTML = cardsHtml;
         }
 
         // 创建销售趋势图表
-        function createSalesTrendChart(data, dimension) {
+        function createSalesTrendChart(data) {
             const ctx = document.getElementById('salesTrendChart').getContext('2d');
             
             if (salesTrendChart) {
                 salesTrendChart.destroy();
             }
 
-            // 数据验证和处理
-            if (!data || !Array.isArray(data) || data.length === 0) {
-                const chartContainer = ctx.canvas.parentElement;
-                chartContainer.innerHTML = '<div class="chart-placeholder">📊 暂无销售趋势数据</div>';
-                return;
-            }
+            const labels = data.map(item => item.period || item.month || '未知');
+            const values = data.map(item => item.total_sales || item.sales || 0);
 
-            let labels, values, orderCounts = [];
-            
-            // 根据维度处理数据
-            if (dimension === 'month' || dimension === 'quarter') {
-                // 按时间排序
-                const sortedData = data.sort((a, b) => {
-                    const dateA = new Date(a.month || a.quarter || a._id);
-                    const dateB = new Date(b.month || b.quarter || b._id);
-                    return dateA - dateB;
-                });
-                
-                labels = sortedData.map(item => {
-                    const dateStr = item.month || item.quarter || item._id;
-                    // 格式化日期显示
-                    if (dimension === 'month') {
-                        return new Date(dateStr + '-01').toLocaleDateString('zh-CN', { year: 'numeric', month: 'short' });
-                    }
-                    return dateStr;
-                });
-                values = sortedData.map(item => item.total_sales || 0);
-                orderCounts = sortedData.map(item => item.sales_count || item.order_count || 0);
-            } else if (dimension === 'product') {
-                // 按销售额排序，取前15个
-                const sortedData = data
-                    .sort((a, b) => (b.total_sales || 0) - (a.total_sales || 0))
-                    .slice(0, 15);
-                
-                labels = sortedData.map(item => {
-                    const name = item._id || item.product_name || '未知产品';
-                    // 截断过长的产品名称
-                    return name.length > 12 ? name.substring(0, 12) + '...' : name;
-                });
-                values = sortedData.map(item => item.total_sales || 0);
-                orderCounts = sortedData.map(item => item.sales_count || item.order_count || 0);
-            }
-
-            // 创建渐变色
-            const gradient = ctx.createLinearGradient(0, 0, 0, 300);
-            if (dimension === 'product') {
-                gradient.addColorStop(0, 'rgba(0, 123, 255, 0.8)');
-                gradient.addColorStop(1, 'rgba(0, 123, 255, 0.2)');
-            } else {
-                gradient.addColorStop(0, 'rgba(0, 123, 255, 0.3)');
-                gradient.addColorStop(1, 'rgba(0, 123, 255, 0.05)');
-            }
-
-            const chartConfig = {
-                type: dimension === 'product' ? 'bar' : 'line',
+            salesTrendChart = new Chart(ctx, {
+                type: 'line',
                 data: {
                     labels: labels,
                     datasets: [{
-                        label: '销售金额',
+                        label: '销售额',
                         data: values,
                         borderColor: '#007bff',
-                        backgroundColor: dimension === 'product' ? gradient : gradient,
-                        borderWidth: dimension === 'product' ? 1 : 3,
-                        fill: true,
-                        tension: dimension === 'product' ? 0 : 0.4,
-                        pointBackgroundColor: '#007bff',
-                        pointBorderColor: '#ffffff',
-                        pointBorderWidth: 2,
-                        pointRadius: dimension === 'product' ? 0 : 5,
-                        pointHoverRadius: dimension === 'product' ? 0 : 8
+                        backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                        tension: 0.4,
+                        fill: true
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    interaction: {
-                        intersect: false,
-                        mode: 'index'
-                    },
                     plugins: {
                         legend: {
-                            display: false
-                        },
-                        tooltip: {
-                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                            titleColor: '#ffffff',
-                            bodyColor: '#ffffff',
-                            borderColor: '#007bff',
-                            borderWidth: 1,
-                            cornerRadius: 8,
-                            displayColors: false,
-                            callbacks: {
-                                title: function(context) {
-                                    return context[0].label;
-                                },
-                                label: function(context) {
-                                    const value = context.parsed.y;
-                                    const orderCount = orderCounts[context.dataIndex];
-                                    let label = `销售额: ¥${value.toLocaleString()}`;
-                                    if (orderCount > 0) {
-                                        label += `\n订单数: ${orderCount}`;
-                                        const avgOrder = value / orderCount;
-                                        label += `\n平均订单: ¥${avgOrder.toLocaleString()}`;
-                                    }
-                                    return label;
-                                }
-                            }
+                            display: true
                         }
                     },
                     scales: {
                         y: {
                             beginAtZero: true,
-                            grid: {
-                                color: 'rgba(0, 0, 0, 0.1)',
-                                drawBorder: false
-                            },
                             ticks: {
-                                color: '#666',
-                                font: {
-                                    size: 12
-                                },
                                 callback: function(value) {
-                                    if (value >= 1000000) {
-                                        return '¥' + (value / 1000000).toFixed(1) + 'M';
-                                    } else if (value >= 1000) {
-                                        return '¥' + (value / 1000).toFixed(1) + 'K';
-                                    }
                                     return '¥' + value.toLocaleString();
                                 }
                             }
-                        },
-                        x: {
-                            grid: {
-                                display: dimension !== 'product',
-                                color: 'rgba(0, 0, 0, 0.1)',
-                                drawBorder: false
-                            },
-                            ticks: {
-                                color: '#666',
-                                font: {
-                                    size: 11
-                                },
-                                maxRotation: dimension === 'product' ? 45 : 0,
-                                maxTicksLimit: dimension === 'product' ? 15 : 12
-                            }
                         }
-                    },
-                    animation: {
-                        duration: 1000,
-                        easing: 'easeInOutQuart'
                     }
                 }
-            };
-
-            salesTrendChart = new Chart(ctx, chartConfig);
+            });
         }
 
         // 创建客户价值图表
@@ -3326,234 +376,18 @@
                 customerValueChart.destroy();
             }
 
-            // 数据验证
-            if (!data || !Array.isArray(data) || data.length === 0) {
-                const chartContainer = ctx.canvas.parentElement;
-                chartContainer.innerHTML = '<div class="chart-placeholder">👥 暂无客户价值数据</div>';
-                return;
-            }
+            const labels = data.slice(0, 10).map(item => item.customer_name || '未知客户');
+            const values = data.slice(0, 10).map(item => item.monetary || 0);
 
-            // 统计客户分类和价值
-            const segmentStats = {};
-            let totalValue = 0;
-            
-            data.forEach(customer => {
-                const segment = customer.customer_segment || '未分类';
-                const value = customer.monetary || customer.customer_value || 0;
-                
-                if (!segmentStats[segment]) {
-                    segmentStats[segment] = { count: 0, totalValue: 0 };
-                }
-                
-                segmentStats[segment].count++;
-                segmentStats[segment].totalValue += value;
-                totalValue += value;
-            });
-
-            // 准备图表数据
-            const labels = Object.keys(segmentStats);
-            const values = labels.map(label => segmentStats[label].count);
-            const colors = [
-                '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', 
-                '#9966FF', '#FF9F40', '#FF6384', '#C9CBCF'
-            ];
-
-            const chartConfig = {
-                type: 'doughnut',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        data: values,
-                        backgroundColor: colors.slice(0, labels.length),
-                        borderColor: '#ffffff',
-                        borderWidth: 2,
-                        hoverBorderWidth: 3
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: {
-                                padding: 20,
-                                usePointStyle: true,
-                                font: {
-                                    size: 12
-                                }
-                            }
-                        },
-                        tooltip: {
-                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                            titleColor: '#ffffff',
-                            bodyColor: '#ffffff',
-                            borderColor: '#007bff',
-                            borderWidth: 1,
-                            cornerRadius: 8,
-                            callbacks: {
-                                label: function(context) {
-                                    const segment = context.label;
-                                    const count = context.parsed;
-                                    const percentage = ((count / data.length) * 100).toFixed(1);
-                                    const avgValue = segmentStats[segment].totalValue / count;
-                                    return [
-                                        `${segment}: ${count}人 (${percentage}%)`,
-                                        `平均价值: ¥${avgValue.toLocaleString()}`
-                                    ];
-                                }
-                            }
-                        }
-                    },
-                    animation: {
-                        duration: 1000,
-                        easing: 'easeInOutQuart'
-                    }
-                }
-            };
-
-            customerValueChart = new Chart(ctx, chartConfig);
-        }
-
-        // 更新客户详细分析表格
-        function updateCustomerDetailTable(data) {
-            const customerTable = document.getElementById('customer-table');
-            
-            if (!data || !Array.isArray(data) || data.length === 0) {
-                customerTable.innerHTML = '<div class="chart-placeholder">👤 暂无客户详细数据</div>';
-                return;
-            }
-
-            // 按客户价值排序，取前20个
-            const topCustomers = data
-                .sort((a, b) => (b.monetary || b.customer_value || 0) - (a.monetary || a.customer_value || 0))
-                .slice(0, 20);
-
-            const tableHtml = `
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>客户名称</th>
-                            <th>客户分类</th>
-                            <th>RFM评分</th>
-                            <th>客户价值</th>
-                            <th>最近购买</th>
-                            <th>购买频率</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${topCustomers.map(customer => `
-                            <tr>
-                                <td>${customer.customer_name || customer._id || '未知客户'}</td>
-                                <td><span class="status-${getSegmentClass(customer.customer_segment)}">${customer.customer_segment || '未分类'}</span></td>
-                                <td>${customer.rfm_score || 'N/A'}</td>
-                                <td>${formatCurrency(customer.monetary || customer.customer_value || 0)}</td>
-                                <td>${customer.recency || 'N/A'}天前</td>
-                                <td>${customer.frequency || 'N/A'}次</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            `;
-
-            customerTable.innerHTML = tableHtml;
-        }
-
-        // 获取客户分类样式类
-        function getSegmentClass(segment) {
-            const segmentMap = {
-                '冠军客户': 'high',
-                '忠诚客户': 'high',
-                '潜力客户': 'medium',
-                '新客户': 'medium',
-                '风险客户': 'low',
-                '流失客户': 'low'
-            };
-            return segmentMap[segment] || 'medium';
-        }
-
-        // 更新库存概览
-        function updateInventorySummary(data) {
-            const inventorySummary = document.getElementById('inventory-summary');
-            
-            if (!data) {
-                inventorySummary.innerHTML = '<div class="chart-placeholder">📦 暂无库存概览数据</div>';
-                return;
-            }
-
-            const summaryHtml = `
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
-                    <div class="metric-card" style="padding: 15px;">
-                        <h4 style="margin-bottom: 10px; color: #495057;">📊 整体周转率</h4>
-                        <div class="metric-value" style="font-size: 1.8em;">${(data.overall_turnover_rate || 0).toFixed(2)}</div>
-                        <div class="metric-label">次/年</div>
-                    </div>
-                    <div class="metric-card" style="padding: 15px;">
-                        <h4 style="margin-bottom: 10px; color: #495057;">🚀 快速周转</h4>
-                        <div class="metric-value" style="font-size: 1.8em; color: #28a745;">${data.fast_moving_items || 0}</div>
-                        <div class="metric-label">个产品</div>
-                    </div>
-                    <div class="metric-card" style="padding: 15px;">
-                        <h4 style="margin-bottom: 10px; color: #495057;">🐌 慢速周转</h4>
-                        <div class="metric-value" style="font-size: 1.8em; color: #ffc107;">${data.slow_moving_items || 0}</div>
-                        <div class="metric-label">个产品</div>
-                    </div>
-                    <div class="metric-card" style="padding: 15px;">
-                        <h4 style="margin-bottom: 10px; color: #495057;">⚠️ 呆滞库存</h4>
-                        <div class="metric-value" style="font-size: 1.8em; color: #dc3545;">${data.dead_stock_count || 0}</div>
-                        <div class="metric-label">个产品</div>
-                    </div>
-                </div>
-            `;
-
-            inventorySummary.innerHTML = summaryHtml;
-        }
-
-        // 创建库存周转图表
-        function createInventoryChart(data) {
-            const ctx = document.getElementById('inventoryChart').getContext('2d');
-            
-            if (inventoryChart) {
-                inventoryChart.destroy();
-            }
-
-            // 数据验证
-            if (!data || !data.turnover_analysis || !Array.isArray(data.turnover_analysis) || data.turnover_analysis.length === 0) {
-                const chartContainer = ctx.canvas.parentElement;
-                chartContainer.innerHTML = '<div class="chart-placeholder">📦 暂无库存周转数据</div>';
-                return;
-            }
-
-            // 按周转率排序，取前20个
-            const sortedData = data.turnover_analysis
-                .sort((a, b) => (b.turnover_rate || 0) - (a.turnover_rate || 0))
-                .slice(0, 20);
-
-            const labels = sortedData.map(item => {
-                const name = item.product_name || item._id || '未知产品';
-                return name.length > 10 ? name.substring(0, 10) + '...' : name;
-            });
-            
-            const values = sortedData.map(item => item.turnover_rate || 0);
-            
-            // 根据周转率设置颜色
-            const colors = sortedData.map(item => {
-                const rate = item.turnover_rate || 0;
-                if (rate >= 4) return '#28a745'; // 快速周转 - 绿色
-                if (rate >= 2) return '#ffc107'; // 正常周转 - 黄色
-                if (rate >= 1) return '#fd7e14'; // 慢速周转 - 橙色
-                return '#dc3545'; // 呆滞库存 - 红色
-            });
-
-            const chartConfig = {
+            customerValueChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: labels,
                     datasets: [{
-                        label: '周转率',
+                        label: '客户价值',
                         data: values,
-                        backgroundColor: colors,
-                        borderColor: colors.map(color => color),
+                        backgroundColor: 'rgba(54, 162, 235, 0.8)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
                         borderWidth: 1
                     }]
                 },
@@ -3562,404 +396,57 @@
                     maintainAspectRatio: false,
                     plugins: {
                         legend: {
-                            display: false
-                        },
-                        tooltip: {
-                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                            titleColor: '#ffffff',
-                            bodyColor: '#ffffff',
-                            borderColor: '#007bff',
-                            borderWidth: 1,
-                            cornerRadius: 8,
-                            displayColors: false,
-                            callbacks: {
-                                title: function(context) {
-                                    const index = context[0].dataIndex;
-                                    return sortedData[index].product_name || sortedData[index]._id || '未知产品';
-                                },
-                                label: function(context) {
-                                    const index = context.dataIndex;
-                                    const item = sortedData[index];
-                                    const rate = item.turnover_rate || 0;
-                                    const value = item.stock_value || 0;
-                                    const category = item.category || '未分类';
-                                    
-                                    return [
-                                        `周转率: ${rate.toFixed(2)} 次/年`,
-                                        `库存价值: ¥${value.toLocaleString()}`,
-                                        `分类: ${category}`
-                                    ];
-                                }
-                            }
+                            display: true
                         }
                     },
                     scales: {
                         y: {
                             beginAtZero: true,
-                            grid: {
-                                color: 'rgba(0, 0, 0, 0.1)',
-                                drawBorder: false
-                            },
                             ticks: {
-                                color: '#666',
-                                font: {
-                                    size: 12
-                                },
                                 callback: function(value) {
-                                    return value.toFixed(1) + '次';
+                                    return '¥' + value.toLocaleString();
                                 }
                             }
                         },
                         x: {
-                            grid: {
-                                display: false
-                            },
                             ticks: {
-                                color: '#666',
-                                font: {
-                                    size: 10
-                                },
                                 maxRotation: 45
                             }
                         }
-                    },
-                    animation: {
-                        duration: 1000,
-                        easing: 'easeInOutQuart'
                     }
                 }
-            };
-
-            inventoryChart = new Chart(ctx, chartConfig);
-        }
-
-        // 更新呆滞库存表格
-        function updateDeadStockTable(data) {
-            const deadStockTable = document.getElementById('dead-stock-table');
-            
-            if (!data || !data.dead_stock_items || !Array.isArray(data.dead_stock_items) || data.dead_stock_items.length === 0) {
-                deadStockTable.innerHTML = `
-                    <div style="margin-top: 20px;">
-                        <h4 style="color: #28a745; margin-bottom: 10px;">✅ 暂无呆滞库存</h4>
-                        <p style="color: #6c757d;">所有产品的库存周转情况良好</p>
-                    </div>
-                `;
-                return;
-            }
-
-            const tableHtml = `
-                <div style="margin-top: 20px;">
-                    <h4 style="color: #dc3545; margin-bottom: 15px;">⚠️ 呆滞库存预警</h4>
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>产品名称</th>
-                                <th>周转率</th>
-                                <th>库存价值</th>
-                                <th>库存天数</th>
-                                <th>建议措施</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${data.dead_stock_items.map(item => `
-                                <tr>
-                                    <td>${item.product_name || item._id || '未知产品'}</td>
-                                    <td><span class="status-low">${(item.turnover_rate || 0).toFixed(2)}次/年</span></td>
-                                    <td>${formatCurrency(item.stock_value || 0)}</td>
-                                    <td>${item.days_in_stock || 'N/A'}天</td>
-                                    <td>
-                                        ${item.turnover_rate === 0 ? '促销清仓' : 
-                                          item.turnover_rate < 0.5 ? '降价促销' : '优化采购'}
-                                    </td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                </div>
-            `;
-
-            deadStockTable.innerHTML = tableHtml;
-        }
-
-        // 显示对比分析结果
-        function displayComparisonResults(data) {
-            const comparisonResults = document.getElementById('comparison-results');
-            
-            if (!data) {
-                comparisonResults.innerHTML = '<div class="chart-placeholder">⚖️ 暂无对比分析数据</div>';
-                return;
-            }
-
-            // 创建对比结果的HTML
-            let resultsHtml = '<div style="margin-top: 20px;">';
-            
-            // 如果有图表数据，创建图表
-            if (data.chart_data && Array.isArray(data.chart_data) && data.chart_data.length > 0) {
-                resultsHtml += `
-                    <div class="chart-container" style="margin-bottom: 30px;">
-                        <canvas id="comparisonChart"></canvas>
-                    </div>
-                `;
-            }
-            
-            // 如果有表格数据，创建表格
-            if (data.table_data && Array.isArray(data.table_data) && data.table_data.length > 0) {
-                resultsHtml += `
-                    <h4 style="margin-bottom: 15px;">📊 对比分析详情</h4>
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                ${Object.keys(data.table_data[0]).map(key => `<th>${key}</th>`).join('')}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${data.table_data.map(row => `
-                                <tr>
-                                    ${Object.values(row).map(value => `
-                                        <td>${typeof value === 'number' ? 
-                                            (value > 1000 ? formatCurrency(value) : value.toLocaleString()) : 
-                                            value}</td>
-                                    `).join('')}
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                `;
-            }
-            
-            resultsHtml += '</div>';
-            comparisonResults.innerHTML = resultsHtml;
-            
-            // 如果有图表数据，创建图表
-            if (data.chart_data && Array.isArray(data.chart_data) && data.chart_data.length > 0) {
-                createComparisonChart(data.chart_data);
-            }
-        }
-
-        // 创建对比分析图表
-        function createComparisonChart(chartData) {
-            const canvas = document.getElementById('comparisonChart');
-            if (!canvas) return;
-            
-            const ctx = canvas.getContext('2d');
-            
-            // 销毁现有图表
-            if (window.comparisonChart) {
-                window.comparisonChart.destroy();
-            }
-
-            // 准备图表数据
-            const labels = chartData.map(item => item.label || item._id || '未知');
-            const datasets = [];
-            
-            // 获取所有数值字段
-            const numericFields = Object.keys(chartData[0]).filter(key => 
-                key !== 'label' && key !== '_id' && typeof chartData[0][key] === 'number'
-            );
-            
-            // 为每个数值字段创建数据集
-            const colors = ['#007bff', '#28a745', '#ffc107', '#dc3545', '#6f42c1', '#fd7e14'];
-            numericFields.forEach((field, index) => {
-                datasets.push({
-                    label: field,
-                    data: chartData.map(item => item[field] || 0),
-                    backgroundColor: colors[index % colors.length] + '80',
-                    borderColor: colors[index % colors.length],
-                    borderWidth: 2
-                });
-            });
-
-            const chartConfig = {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: datasets
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'top',
-                            labels: {
-                                padding: 20,
-                                usePointStyle: true
-                            }
-                        },
-                        tooltip: {
-                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                            titleColor: '#ffffff',
-                            bodyColor: '#ffffff',
-                            borderColor: '#007bff',
-                            borderWidth: 1,
-                            cornerRadius: 8
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            grid: {
-                                color: 'rgba(0, 0, 0, 0.1)',
-                                drawBorder: false
-                            },
-                            ticks: {
-                                color: '#666',
-                                font: {
-                                    size: 12
-                                }
-                            }
-                        },
-                        x: {
-                            grid: {
-                                display: false
-                            },
-                            ticks: {
-                                color: '#666',
-                                font: {
-                                    size: 11
-                                },
-                                maxRotation: 45
-                            }
-                        }
-                    },
-                    animation: {
-                        duration: 1000,
-                        easing: 'easeInOutQuart'
-                    }
-                }
-            };
-
-            window.comparisonChart = new Chart(ctx, chartConfig);
-        }
-
-        // 显示销售趋势
-        function showSalesTrend(dimension) {
-            // 更新标签状态
-            document.querySelectorAll('.analysis-tab').forEach(tab => {
-                tab.classList.remove('active');
-            });
-            event.target.classList.add('active');
-
-            showLoading('正在加载销售趋势数据...');
-
-            const startDate = document.getElementById('start-date').value;
-            const endDate = document.getElementById('end-date').value;
-
-            vscode.postMessage({
-                command: 'getSalesTrend',
-                params: {
-                    dimension: dimension,
-                    start_date: startDate,
-                    end_date: endDate
-                }
             });
         }
 
-        // 显示分析标签页
-        function showAnalysisTab(tabName) {
-            // 隐藏所有标签内容
-            document.querySelectorAll('.tab-content').forEach(content => {
-                content.classList.remove('active');
-            });
-            
-            // 更新标签状态
-            document.querySelectorAll('.analysis-tab').forEach(tab => {
-                tab.classList.remove('active');
-            });
-            event.target.classList.add('active');
-            
-            // 显示选中的标签内容
-            const targetContent = document.getElementById(tabName + '-analysis');
-            if (targetContent) {
-                targetContent.classList.add('active');
-                
-                // 根据标签类型加载相应数据
-                loadTabData(tabName);
-            }
+        // 格式化货币
+        function formatCurrency(amount) {
+            if (amount === null || amount === undefined) return '¥0.00';
+            return '¥' + parseFloat(amount).toLocaleString('zh-CN', { minimumFractionDigits: 2 });
         }
 
-        // 加载标签页数据
-        function loadTabData(tabName) {
-            const startDate = document.getElementById('start-date').value;
-            const endDate = document.getElementById('end-date').value;
-
-            if (!startDate || !endDate) {
-                showError('请先选择分析日期范围');
-                return;
-            }
-
-            switch (tabName) {
-                case 'inventory':
-                    showLoading('正在加载库存分析数据...');
-                    vscode.postMessage({
-                        command: 'getInventoryAnalysis',
-                        params: {
-                            start_date: startDate,
-                            end_date: endDate
-                        }
-                    });
-                    break;
-                case 'customer':
-                    showLoading('正在加载客户分析数据...');
-                    vscode.postMessage({
-                        command: 'getCustomerAnalysis',
-                        params: {
-                            start_date: startDate,
-                            end_date: endDate
-                        }
-                    });
-                    break;
-                case 'purchase':
-                    showLoading('正在加载采购分析数据...');
-                    vscode.postMessage({
-                        command: 'getPurchaseAnalysis',
-                        params: {
-                            start_date: startDate,
-                            end_date: endDate
-                        }
-                    });
-                    break;
-            }
+        // 显示加载状态
+        function showLoading(title = '正在加载...', message = '请稍候...') {
+            document.getElementById('loadingTitle').textContent = title;
+            document.getElementById('loadingMessage').textContent = message;
+            document.getElementById('loadingOverlay').style.display = 'flex';
         }
 
-        // 生成对比分析
-        function generateComparison() {
-            const metricsSelect = document.getElementById('comparison-metrics');
-            const dimensionsSelect = document.getElementById('comparison-dimensions');
-            
-            const selectedMetrics = Array.from(metricsSelect.selectedOptions).map(option => option.value);
-            const selectedDimensions = Array.from(dimensionsSelect.selectedOptions).map(option => option.value);
-            
-            if (selectedMetrics.length === 0) {
-                showError('请至少选择一个对比指标');
-                return;
-            }
-            
-            if (selectedDimensions.length === 0) {
-                showError('请至少选择一个对比维度');
-                return;
-            }
-            
-            const startDate = document.getElementById('start-date').value;
-            const endDate = document.getElementById('end-date').value;
+        // 隐藏加载状态
+        function hideLoading() {
+            document.getElementById('loadingOverlay').style.display = 'none';
+        }
 
-            if (!startDate || !endDate) {
-                showError('请先选择分析日期范围');
-                return;
-            }
+        // 显示错误信息
+        function showError(message) {
+            hideLoading();
+            alert('错误: ' + message);
+        }
 
-            showLoading('正在生成对比分析...');
-
-            vscode.postMessage({
-                command: 'getComparisonAnalysis',
-                params: {
-                    metrics: selectedMetrics,
-                    dimensions: selectedDimensions,
-                    start_date: startDate,
-                    end_date: endDate
-                }
-            });
+        // 处理错误
+        function handleError(error) {
+            console.error('发生错误:', error);
+            showError(error.message || '未知错误');
         }
     </script>
 </body>
-</html> 
+</html>
